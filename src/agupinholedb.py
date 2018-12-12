@@ -19,6 +19,13 @@ class PinholeMeasurement (Base):
     ycenter= Column(Float)
     dateobs = Column (DateTime)
 
+    def __repr__(self):
+        return "<PinholeMeasurement(image='%s', instrument='%s', x='% 6.2f', y='% 6.2f')>" % (
+            self.imagename, self.instrument,
+            self.xcenter if self.xcenter is not None else 0,
+            self.ycenter if self.ycenter is not None else 0)
+
+
 
 def get_session(db_address):
     """
