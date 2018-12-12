@@ -5,6 +5,12 @@ import scipy.signal
 from scipy import ndimage
 from astropy.io import fits
 from astropy.time import Time
+import sys
+import logging
+import agupinholedb
+import argparse
+
+dbsession = None
 
 def findPinhole (imagename):
     """
@@ -55,10 +61,12 @@ def findPinhole (imagename):
     #     plt.plot (x,y,'o')
 
 
+    if dbsession is not None:
+        dbsession
     return imagename, alt,az,x,y, do
 
 
-def findPinHoleInImages (imagepath):
+def findPinHoleInImages (imagepath, dbsession = None,  ncpu = 3):
     alts=[]
     azs=[]
     xs = []
@@ -67,7 +75,7 @@ def findPinHoleInImages (imagepath):
     dos = []
 
     imagelist = glob.glob (imagepath)
-    pool = mp.Pool(processes=3)
+    pool = mp.Pool(processes=ncpu)
     results = pool.map (findPinhole, imagelist)
 
     for result in results:
@@ -91,4 +99,27 @@ def findPinHoleInImages (imagepath):
     return images, alts,az,xs,ys, dos
 
 
+def parseCommandLine():
+    """ Read command line parameters
+    """
+
+    parser = argparse.ArgumentParser(
+        description='measure pinhole location in AGU images')
+    parser.add_argument('--log_level', dest='log_level', default='INFO', choices=['DEBUG', 'INFO'],
+                        help='Set the debug level')
+    parser.add_argument('--database', default = 'sqlite:///agupinholeocations.sqlite')
+    args = parser.parse_args()
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()),
+                        format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
+
+    return args
+
+if __name__ == '__main__':
+
+    args = parseCommandLine()
+
+    agupinholedb.create_db(args.database)
+    session =agupinholedb.get_session(args.database)
+
+    sys.exit(0)
 
