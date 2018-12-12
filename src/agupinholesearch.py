@@ -10,6 +10,8 @@ import logging
 import agupinholedb
 import argparse
 
+log = logging.getLogger(__name__)
+
 dbsession = None
 
 def findPinhole (imagename):
@@ -43,6 +45,8 @@ def findPinhole (imagename):
     az  = image[1].header['AZIMUTH']
     alt = image[1].header['ALTITUDE']
     do = Time(image[1].header['DATE-OBS'], format='isot', scale='utc').datetime
+    instrument = image[1].header['INSTRUME']
+
     image.close()
 
     #correlate and find centroid of correlation
@@ -62,11 +66,14 @@ def findPinhole (imagename):
 
 
     if dbsession is not None:
-        dbsession
+        measurement = agupinholedb.PinholeMeasurement (imagename = imagename, instrument=instrument, altitude=alt, azimut=az, xcenter=x,ycenter=y,dateobs=do)
+        dbsession.merge (measurement)
+        dbsession.commit()
+        log.info ("Adding to database: %s " % measurement)
     return imagename, alt,az,x,y, do
 
 
-def findPinHoleInImages (imagepath, dbsession = None,  ncpu = 3):
+def findPinHoleInImages (imagepath,  ncpu = 3):
     alts=[]
     azs=[]
     xs = []
@@ -105,9 +112,10 @@ def parseCommandLine():
 
     parser = argparse.ArgumentParser(
         description='measure pinhole location in AGU images')
+    parser.add_argument("inputfiles")
     parser.add_argument('--log_level', dest='log_level', default='INFO', choices=['DEBUG', 'INFO'],
                         help='Set the debug level')
-    parser.add_argument('--database', default = 'sqlite:///agupinholeocations.sqlite')
+    parser.add_argument('--database', default = 'sqlite:///agupinholelocations.sqlite')
     args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
@@ -119,7 +127,10 @@ if __name__ == '__main__':
     args = parseCommandLine()
 
     agupinholedb.create_db(args.database)
-    session =agupinholedb.get_session(args.database)
+    dbsession =agupinholedb.get_session(args.database)
+
+    findPinHoleInImages(args.inputfiles)
+
 
     sys.exit(0)
 

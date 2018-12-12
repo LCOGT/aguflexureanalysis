@@ -1,4 +1,3 @@
-import sqlite3
 from sqlalchemy import Column, Integer, Float, String, DateTime, create_engine, pool
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -13,6 +12,7 @@ class PinholeMeasurement (Base):
     __tablename__ = 'pinholemasurements'
 
     imagename = Column (String, primary_key=True)
+    instrument = Column(String)
     altitude = Column (Float)
     azimut = Column(Float)
     xcenter = Column(Float)
@@ -44,5 +44,6 @@ def create_db(db_address):
     # Create all tables in the engine
     # This only needs to be run once on initialization.
     Base.metadata.create_all(engine)
+
 
 
