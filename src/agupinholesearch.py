@@ -13,11 +13,18 @@ import argparse
 log = logging.getLogger(__name__)
 
 dbsession = None
-
+reprocess = False
 def findPinhole (imagename):
     """
         Find pinhole by cross-correlation with a template
     """
+
+    if (reprocess is False) and (dbsession is not None):
+        # test if image has been processed already.
+        if agupinholedb.doesRecordExists(dbsession, imagename):
+            log.debug ("Image %s already has a record in database, skipping" % imagename)
+            return
+
     # Template
     radius = 7.5
     y,x = np.ogrid[-50:50, -50:50]
@@ -28,9 +35,13 @@ def findPinhole (imagename):
 
     # image
     image = fits.open(imagename)
+
+    CRPIX1 = int(image[1].header['CRPIX1'])
+    CRPIX2 = int(image[1].header['CRPIX2'])
+
     background = np.median (image[1].data[350:-350,350:-350])
 
-    extractdata = image[1].data[520:640,620:740]
+    extractdata = image[1].data[CRPIX2 - 60: CRPIX2 + 59, CRPIX1-60 : CRPIX1+59]
 
     centerbackground = np.median (extractdata)
 
@@ -53,8 +64,8 @@ def findPinhole (imagename):
     cor = scipy.signal.correlate2d (extractdata, array,boundary='symm', mode='same')
     y, x = np.unravel_index(np.argmax(cor), cor.shape)
     center = ndimage.measurements.center_of_mass(cor [y-15:y+15,x-15:x+15])
-    x = center[0] + x - 15
-    y = center[1] + y - 15
+    x = center[0] + x - 15 + CRPIX1
+    y = center[1] + y - 15 + CRPIX2
 
     #     plt.figure()
     #     plt.imshow (array,clim=(-1,1))
@@ -70,7 +81,7 @@ def findPinhole (imagename):
         dbsession.merge (measurement)
         dbsession.commit()
         log.info ("Adding to database: %s " % measurement)
-    return imagename, alt,az,x,y, do
+    return
 
 
 def findPinHoleInImages (imagepath,  ncpu = 3):
@@ -83,27 +94,9 @@ def findPinHoleInImages (imagepath,  ncpu = 3):
 
     imagelist = glob.glob (imagepath)
     pool = mp.Pool(processes=ncpu)
-    results = pool.map (findPinhole, imagelist)
+    pool.map (findPinhole, imagelist)
 
-    for result in results:
-        image,alt,az,x,y, do = result
-        alts.append(alt)
-        azs.append (az)
-        xs.append (x)
-        ys.append (y)
-        images.append (image)
-        dos.append(do)
 
-    alts=np.asarray(alts)
-    azs=np.asarray(azs)
-    xs=np.asarray(xs)
-    ys=np.asarray(ys)
-    images = np.asarray(images)
-    dos = np.asarray(dos)
-
-    az = azs
-    az[az>180] =az[az>180] - 360
-    return images, alts,az,xs,ys, dos
 
 
 def parseCommandLine():
@@ -116,9 +109,13 @@ def parseCommandLine():
     parser.add_argument('--log_level', dest='log_level', default='INFO', choices=['DEBUG', 'INFO'],
                         help='Set the debug level')
     parser.add_argument('--database', default = 'sqlite:///agupinholelocations.sqlite')
+    parser.add_argument('--ncpu', default = 1)
+    parser.add_argument('--reprocess', default = False)
+
     args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
+
 
     return args
 
@@ -128,8 +125,9 @@ if __name__ == '__main__':
 
     agupinholedb.create_db(args.database)
     dbsession =agupinholedb.get_session(args.database)
+    reprocess = args.reprocess
 
-    findPinHoleInImages(args.inputfiles)
+    findPinHoleInImages(args.inputfiles, ncpu= args.ncpu)
 
 
     sys.exit(0)

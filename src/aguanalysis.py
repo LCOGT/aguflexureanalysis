@@ -84,7 +84,10 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 
 if __name__ == '__main__':
 
-    plotagutrends ('ak01')
-    sys.exit(0)
+    #plotagutrends ('ak01')
+    plotagutrends ('ak06')
+    #plotagutrends ('ak08')
+    #plotagutrends ('ak10')
+sys.exit(0)
 
 

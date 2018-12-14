@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, create_engine, pool
+from sqlalchemy import Column, Integer, Float, String, DateTime, create_engine, pool, exists
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import logging
@@ -25,6 +25,9 @@ class PinholeMeasurement (Base):
             self.xcenter if self.xcenter is not None else 0,
             self.ycenter if self.ycenter is not None else 0)
 
+def doesRecordExists(session, filename):
+    ret = session.query (exists().where(PinholeMeasurement.imagename==filename)).scalar()
+    return ret
 
 
 def get_session(db_address):
