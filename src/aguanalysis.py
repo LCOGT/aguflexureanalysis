@@ -55,14 +55,12 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 
 
     images,alts,az,xs,ys, dobs = readPinHoles (camera,sql)
-
+    print ("Found {} entries".format(len(images)))
     plt.figure()
 
-    index = (np.isfinite(xs)) & np.isfinite (ys)  & (xs != 0) & (alts>89)
+    index = (np.isfinite(xs)) & np.isfinite (ys)  & (xs != 0)# & (alts>89)
 
     plt.plot (dobs[index], xs[index] - np.nanmedian (xs[index]), '.', label="pinhole x")
-    plt.gcf().autofmt_xdate()
-
     plt.ylim([-20,20])
     plt.legend()
     plt.title("%s pinhole location in focus images X" % (camera))
@@ -72,8 +70,6 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 
     plt.figure()
     plt.plot (dobs[index], ys[index] - np.nanmedian (ys[index]), '.', label="pinhole y")
-    plt.gcf().autofmt_xdate()
-
     plt.ylim([-20,20])
     plt.legend()
     plt.title("%s pinhole location in focus images Y" % (camera))
@@ -85,9 +81,9 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 if __name__ == '__main__':
 
     #plotagutrends ('ak01')
-    plotagutrends ('ak06')
+    #plotagutrends ('ak06')
     #plotagutrends ('ak08')
-    #plotagutrends ('ak10')
+    plotagutrends ('ak10')
 sys.exit(0)
 
 

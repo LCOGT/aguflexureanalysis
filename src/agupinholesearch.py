@@ -84,7 +84,7 @@ def findPinhole (imagename):
     return
 
 
-def findPinHoleInImages (imagepath,  ncpu = 3):
+def findPinHoleInImages (imagelist,  ncpu = 3):
     alts=[]
     azs=[]
     xs = []
@@ -92,7 +92,7 @@ def findPinHoleInImages (imagepath,  ncpu = 3):
     images = []
     dos = []
 
-    imagelist = glob.glob (imagepath)
+    #imagelist = glob.glob (imagepath)
     pool = mp.Pool(processes=ncpu)
     pool.map (findPinhole, imagelist)
 
@@ -105,12 +105,12 @@ def parseCommandLine():
 
     parser = argparse.ArgumentParser(
         description='measure pinhole location in AGU images')
-    parser.add_argument("inputfiles")
+    parser.add_argument('inputfiles', type = str, nargs='+',)
     parser.add_argument('--log_level', dest='log_level', default='INFO', choices=['DEBUG', 'INFO'],
                         help='Set the debug level')
     parser.add_argument('--database', default = 'sqlite:///agupinholelocations.sqlite')
-    parser.add_argument('--ncpu', default = 1)
-    parser.add_argument('--reprocess', default = False)
+    parser.add_argument('--ncpu', default = 1, type=int)
+    parser.add_argument('--reprocess', action='store_true')
 
     args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
@@ -125,7 +125,6 @@ if __name__ == '__main__':
 
     agupinholedb.create_db(args.database)
     dbsession =agupinholedb.get_session(args.database)
-    reprocess = args.reprocess
 
     findPinHoleInImages(args.inputfiles, ncpu= args.ncpu)
 
