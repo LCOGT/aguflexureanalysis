@@ -3,7 +3,6 @@ import numpy as np
 import sys
 import agupinholedb
 import matplotlib.dates as mdates
-plt.rcParams["figure.figsize"] = (20,12)
 plt.style.use('ggplot')
 
 
@@ -54,35 +53,33 @@ def dateformat ():
 def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 
 
+
     images,alts,az,xs,ys, dobs = readPinHoles (camera,sql)
     print ("Found {} entries".format(len(images)))
-    plt.figure()
+
 
     index = (np.isfinite(xs)) & np.isfinite (ys)  & (xs != 0)# & (alts>89)
-
-    plt.plot (dobs[index], xs[index] - np.nanmedian (xs[index]), '.', label="pinhole x")
-    plt.ylim([-20,20])
-    plt.legend()
+    print ("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
+    plt.subplot (211)
+    plt.plot (dobs[index], xs[index] - np.nanmedian (xs[index]), ',', label="pinhole x")
+    plt.ylim([-15,15])
     plt.title("%s pinhole location in focus images X" % (camera))
     dateformat()
-    plt.savefig ('longtermtrend_pinhole_%s-x.png' % (camera))
 
-
-    plt.figure()
-    plt.plot (dobs[index], ys[index] - np.nanmedian (ys[index]), '.', label="pinhole y")
-    plt.ylim([-20,20])
-    plt.legend()
+    plt.subplot (212)
+    plt.plot (dobs[index], ys[index] - np.nanmedian (ys[index]), ',', label="pinhole y")
+    plt.ylim([-15,15])
     plt.title("%s pinhole location in focus images Y" % (camera))
     dateformat()
-    plt.savefig ('longtermtrend_pinhole_%s-y.png' % (camera))
-
+    plt.tight_layout()
+    plt.savefig ('longtermtrend_pinhole_%s.png' % (camera))
+    plt.close()
 
 
 if __name__ == '__main__':
 
-    #plotagutrends ('ak01')
+    plotagutrends ('ak01')
     #plotagutrends ('ak06')
-    #plotagutrends ('ak08')
     plotagutrends ('ak10')
 sys.exit(0)
 
