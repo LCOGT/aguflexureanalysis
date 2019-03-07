@@ -5,6 +5,7 @@ import scipy.signal
 from scipy import ndimage
 from astropy.io import fits
 from astropy.time import Time
+import astropy.stats
 import sys
 import logging
 import agupinholedb
@@ -38,27 +39,27 @@ def findPinhole (imagename):
 
     CRPIX1 = int(image[1].header['CRPIX1'])
     CRPIX2 = int(image[1].header['CRPIX2'])
-
-    background = np.median (image[1].data[350:-350,350:-350])
-
-    extractdata = image[1].data[CRPIX2 - 60: CRPIX2 + 59, CRPIX1-60 : CRPIX1+59]
-
-    centerbackground = np.median (extractdata)
-
-    if centerbackground > background + 200:
-        #         print ("Elevated background - probably star contamination - ignoring\n"
-        #               + " background: % 8.1f  cutout: % 8.1f" % (background, centerbackground))
-        return imagename, 0,0,0,0,0
-
-    extractdata = extractdata - np.min (extractdata)
-    extractdata = extractdata / np.median (extractdata)
-    extractdata = extractdata - np.mean (extractdata)
     az  = image[1].header['AZIMUTH']
     alt = image[1].header['ALTITUDE']
     do = Time(image[1].header['DATE-OBS'], format='isot', scale='utc').datetime
     instrument = image[1].header['INSTRUME']
 
+    extractdata = image[1].data[CRPIX2 - 60: CRPIX2 + 59, CRPIX1-60 : CRPIX1+59]
     image.close()
+
+
+    # check if pinhole is iluminated by star. if so, reject
+    background = np.median (image[1].data[350:-350,350:-350])
+    centerbackground = np.median (extractdata)
+    if centerbackground > background + 200:
+        #         print ("Elevated background - probably star contamination - ignoring\n"
+        #               + " background: % 8.1f  cutout: % 8.1f" % (background, centerbackground))
+        return
+
+    # normalize data around window
+    extractdata = extractdata - np.min (extractdata)
+    extractdata = extractdata / astropy.stats.sigma_clip(extractdata, cenfunc='median')
+    extractdata = extractdata - astropy.stats.sigma_clip(extractdata, cenfunc='mean')
 
     #correlate and find centroid of correlation
     cor = scipy.signal.correlate2d (extractdata, array,boundary='symm', mode='same')
@@ -106,7 +107,7 @@ def parseCommandLine():
     parser = argparse.ArgumentParser(
         description='measure pinhole location in AGU images')
     parser.add_argument('inputfiles',  nargs='+',)
-    parser.add_argument('--log_level', dest='log_level', default='INFO', choices=['DEBUG', 'INFO'],
+    parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO'],
                         help='Set the debug level')
     parser.add_argument('--database', default = 'sqlite:///agupinholelocations.sqlite')
     parser.add_argument('--ncpu', default = 1, type=int)
