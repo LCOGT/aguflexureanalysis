@@ -1,3 +1,4 @@
+import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -34,8 +35,9 @@ def readPinHoles (cameraname, sql):
 def dateformat ():
     """ Utility to prettify a plot with dates.
     """
-
-    #plt.xlim([starttime, endtime])
+    starttime = starttime = datetime.datetime(2017, 6, 1)
+    endtime = datetime.datetime.now()
+    plt.xlim([starttime, endtime])
     plt.gcf().autofmt_xdate()
     years = mdates.YearLocator()   # every year
     months = mdates.MonthLocator(bymonth=[4, 7, 10])  # every month
@@ -79,8 +81,11 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 if __name__ == '__main__':
 
     plotagutrends ('ak01')
-    #plotagutrends ('ak06')
+    plotagutrends ('ak02')
+    plotagutrends ('ak06')
+    plotagutrends ('ak05')
+
     plotagutrends ('ak10')
-sys.exit(0)
+    sys.exit(0)
 
 

@@ -105,7 +105,7 @@ def parseCommandLine():
 
     parser = argparse.ArgumentParser(
         description='measure pinhole location in AGU images')
-    parser.add_argument('inputfiles', type = str, nargs='+',)
+    parser.add_argument('inputfiles',  nargs='+',)
     parser.add_argument('--log_level', dest='log_level', default='INFO', choices=['DEBUG', 'INFO'],
                         help='Set the debug level')
     parser.add_argument('--database', default = 'sqlite:///agupinholelocations.sqlite')
@@ -116,7 +116,7 @@ def parseCommandLine():
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
 
-
+    logging.info (args.inputfiles)
     return args
 
 if __name__ == '__main__':
