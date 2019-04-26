@@ -35,8 +35,8 @@ def readPinHoles (cameraname, sql):
 def dateformat ():
     """ Utility to prettify a plot with dates.
     """
-    starttime = starttime = datetime.datetime(2017, 6, 1)
-    endtime = datetime.datetime.now()
+    starttime = datetime.datetime(2017, 6, 1)
+    endtime = datetime.datetime.now() + datetime.timedelta(days=7)
     plt.xlim([starttime, endtime])
     plt.gcf().autofmt_xdate()
     years = mdates.YearLocator()   # every year
@@ -58,24 +58,65 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 
     images,alts,az,xs,ys, dobs = readPinHoles (camera,sql)
     print ("Found {} entries".format(len(images)))
+    index = (np.isfinite(xs)) & np.isfinite (ys)  & (xs != 0)# & (alts>89)
+    xs = xs - np.nanmedian (xs[index])
+    ys = ys - np.nanmedian (ys[index])
 
+    timewindow = datetime.timedelta(days=5)
+    filteredy = ys * 0
+    filteredx = xs * 0
+    smallnumber = (np.abs (ys)<15) & (np.abs (xs)<15)
+    for ii in range (len(dobs)):
+        filteredy[ii] = ys[ii]  -np.median (ys[ (dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
+        filteredx[ii] = xs[ii]  -np.median (xs[ (dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
 
     index = (np.isfinite(xs)) & np.isfinite (ys)  & (xs != 0)# & (alts>89)
     print ("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
     plt.subplot (211)
-    plt.plot (dobs[index], xs[index] - np.nanmedian (xs[index]), ',', label="pinhole x")
+    plt.plot (dobs[index], xs[index], ',', label="pinhole x")
     plt.ylim([-15,15])
     plt.title("%s pinhole location in focus images X" % (camera))
     dateformat()
 
     plt.subplot (212)
-    plt.plot (dobs[index], ys[index] - np.nanmedian (ys[index]), ',', label="pinhole y")
+    plt.plot (dobs[index], ys[index] , ',', label="pinhole y")
     plt.ylim([-15,15])
     plt.title("%s pinhole location in focus images Y" % (camera))
     dateformat()
     plt.tight_layout()
     plt.savefig ('longtermtrend_pinhole_%s.png' % (camera))
     plt.close()
+
+
+    plt.figure()
+    plt.subplot (221)
+    plt.plot (alts[index], filteredy[index] - np.nanmedian (filteredy[index]), ',', label="pinhole y")
+    plt.legend()
+    plt.ylim([-15,15])
+    plt.xlabel ('ALT')
+
+    plt.subplot (222)
+    plt.plot (az[index], filteredy[index] - np.nanmedian (filteredy[index]), ',', label="pinhole y")
+    plt.ylim([-15,15])
+    plt.legend()
+    plt.xlabel ('AZ')
+
+    plt.subplot (223)
+    plt.plot (alts[index], filteredx[index] - np.nanmedian (filteredx[index]), ',', label="pinhole x")
+    plt.ylim([-15,15])
+    plt.legend()
+    plt.xlabel ('ALT')
+
+    plt.subplot (224)
+    plt.plot (az[index], filteredx[index] - np.nanmedian (filteredx[index]), ',', label="pinhole x")
+    plt.ylim([-15,15])
+    plt.legend()
+    plt.xlabel ('AZ')
+
+    plt.tight_layout()
+    plt.savefig ('altaztrends_pinhole_%s.png' % (camera))
+    plt.close()
+
 
 
 if __name__ == '__main__':
