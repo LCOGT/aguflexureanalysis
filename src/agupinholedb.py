@@ -18,6 +18,7 @@ class PinholeMeasurement (Base):
     xcenter = Column(Float)
     ycenter= Column(Float)
     dateobs = Column (DateTime)
+    foctemp = Column(Float)
 
     def __repr__(self):
         return "<PinholeMeasurement(image='%s', instrument='%s', x='% 6.2f', y='% 6.2f')>" % (

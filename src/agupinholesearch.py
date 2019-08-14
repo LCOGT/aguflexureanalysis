@@ -46,6 +46,7 @@ def findPinhole(imagename):
     alt = image[1].header['ALTITUDE']
     do = Time(image[1].header['DATE-OBS'], format='isot', scale='utc').datetime
     instrument = image[1].header['INSTRUME']
+    foctemp = float(image[1].header['FOCTEMP'])
     if 'ak05' in instrument:
         # fix central hot pixel
         print ("Fix hot pixel")
@@ -99,7 +100,7 @@ def findPinhole(imagename):
 
     if dbsession is not None:
         measurement = agupinholedb.PinholeMeasurement(imagename=imagename, instrument=instrument, altitude=alt,
-                                                      azimut=az, xcenter=x, ycenter=y, dateobs=do)
+                                                      azimut=az, xcenter=x, ycenter=y, dateobs=do, foctemp=foctemp)
         dbsession.merge(measurement)
         dbsession.commit()
         log.info("Adding to database: %s " % measurement)
