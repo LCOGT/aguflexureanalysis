@@ -46,7 +46,7 @@ def findPinhole(imagename):
     alt = image[1].header['ALTITUDE']
     do = Time(image[1].header['DATE-OBS'], format='isot', scale='utc').datetime
     instrument = image[1].header['INSTRUME']
-    foctemp = float(image[1].header['FOCTEMP'])
+    foctemp = float(image[1].header['WMSTEMP'])
     if 'ak05' in instrument:
         # fix central hot pixel
         print ("Fix hot pixel")
