@@ -121,14 +121,22 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 
     plt.figure()
     plt.subplot (211)
+    plt.title("%s pinhole location in focus images " % (camera))
+
     plt.plot (foctemps[index], xs[index], ",", label="pinhole x")
+    plt.ylabel ("x-position")
+    plt.xlabel ("WMS temp [\deg C]")
     plt.ylim([-15,15])
     plt.xlim([-10,35])
 
     plt.subplot (212)
+    plt.title("%s pinhole location in focus images " % (camera))
+
     plt.plot (foctemps[index], ys[index], ",", label="pinhole x")
     plt.ylim([-15,15])
     plt.xlim([-10,35])
+    plt.ylabel ("x-position")
+    plt.xlabel ("WMS temp [\deg C]")
 
     plt.savefig ("foctemp_pinhole_{}.png".format (camera))
     plt.close()
