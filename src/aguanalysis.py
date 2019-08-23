@@ -17,6 +17,7 @@ def readPinHoles (cameraname, sql):
     xs = []
     ys=[]
     dobs=[]
+    foctemps = []
 
     print (cameraname)
     resultset = dbsession.query (agupinholedb.PinholeMeasurement)
@@ -28,8 +29,9 @@ def readPinHoles (cameraname, sql):
         xs.append (result.xcenter)
         ys.append (result.ycenter)
         dobs.append (result.dateobs)
+        foctemps.append (result.foctemp)
 
-    return images, np.asarray(alt),np.asarray(az),np.asarray(xs,dtype=np.float32),np.asarray(ys, dtype=np.float32),np.asarray(dobs)
+    return images, np.asarray(alt),np.asarray(az),np.asarray(xs,dtype=np.float32),np.asarray(ys, dtype=np.float32),np.asarray(dobs), np.asanyarray(foctemps)
     dbsession.close()
 
 def dateformat ():
@@ -56,7 +58,7 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 
 
 
-    images,alts,az,xs,ys, dobs = readPinHoles (camera,sql)
+    images,alts,az,xs,ys, dobs, foctemps = readPinHoles (camera,sql)
     print ("Found {} entries".format(len(images)))
     index = (np.isfinite(xs)) & np.isfinite (ys)  & (xs != 0)# & (alts>89)
     xs = xs - np.nanmedian (xs[index])
@@ -117,6 +119,19 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
     plt.savefig ('altaztrends_pinhole_%s.png' % (camera))
     plt.close()
 
+    plt.figure()
+    plt.subplot (211)
+    plt.plot (foctemps[index], xs[index], ",", label="pinhole x")
+    plt.ylim([-15,15])
+    plt.xlim([-10,35])
+
+    plt.subplot (212)
+    plt.plot (foctemps[index], ys[index], ",", label="pinhole x")
+    plt.ylim([-15,15])
+    plt.xlim([-10,35])
+
+    plt.savefig ("foctemp_pinhole_{}.png".format (camera))
+    plt.close()
 
 
 if __name__ == '__main__':
