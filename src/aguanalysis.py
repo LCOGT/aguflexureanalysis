@@ -5,7 +5,9 @@ import sys
 import agupinholedb
 import matplotlib.dates as mdates
 plt.style.use('ggplot')
+import matplotlib as mpl
 
+mpl.rcParams['figure.dpi'] = 300
 
 def readPinHoles (cameraname, sql):
 
@@ -76,13 +78,13 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
     print ("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
     plt.subplot (211)
     plt.plot (dobs[index], xs[index], ',', label="pinhole x")
-    plt.ylim([-15,15])
+    plt.ylim([-35,35])
     plt.title("%s pinhole location in focus images X" % (camera))
     dateformat()
 
     plt.subplot (212)
     plt.plot (dobs[index], ys[index] , ',', label="pinhole y")
-    plt.ylim([-15,15])
+    plt.ylim([-35,35])
     plt.title("%s pinhole location in focus images Y" % (camera))
     dateformat()
     plt.tight_layout()
@@ -94,24 +96,24 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
     plt.subplot (221)
     plt.plot (alts[index], filteredy[index] - np.nanmedian (filteredy[index]), ',', label="pinhole y")
     plt.legend()
-    plt.ylim([-15,15])
+    plt.ylim([-35,35])
     plt.xlabel ('ALT')
 
     plt.subplot (222)
     plt.plot (az[index], filteredy[index] - np.nanmedian (filteredy[index]), ',', label="pinhole y")
-    plt.ylim([-15,15])
+    plt.ylim([-35,35])
     plt.legend()
     plt.xlabel ('AZ')
 
     plt.subplot (223)
     plt.plot (alts[index], filteredx[index] - np.nanmedian (filteredx[index]), ',', label="pinhole x")
-    plt.ylim([-15,15])
+    plt.ylim([-35,35])
     plt.legend()
     plt.xlabel ('ALT')
 
     plt.subplot (224)
     plt.plot (az[index], filteredx[index] - np.nanmedian (filteredx[index]), ',', label="pinhole x")
-    plt.ylim([-15,15])
+    plt.ylim([-35,35])
     plt.legend()
     plt.xlabel ('AZ')
 
@@ -121,22 +123,21 @@ def plotagutrends (camera='ak01', sql='sqlite:///agupinholelocations.sqlite'):
 
     plt.figure()
     plt.subplot (211)
-    plt.title("%s pinhole location in focus images " % (camera))
 
     plt.plot (foctemps[index], xs[index], ",", label="pinhole x")
     plt.ylabel ("x-position")
-    plt.xlabel ("WMS temp [\deg C]")
-    plt.ylim([-15,15])
+    plt.title ("{} WMS temp [\deg C]".format(camera))
+    plt.ylim([-35,35])
     plt.xlim([-10,35])
 
     plt.subplot (212)
     plt.title("%s pinhole location in focus images " % (camera))
 
     plt.plot (foctemps[index], ys[index], ",", label="pinhole x")
-    plt.ylim([-15,15])
+    plt.ylim([-35,35])
     plt.xlim([-10,35])
-    plt.ylabel ("x-position")
-    plt.xlabel ("WMS temp [\deg C]")
+    plt.ylabel ("y-position")
+    plt.title ("WMS temp [\deg C]")
 
     plt.savefig ("foctemp_pinhole_{}.png".format (camera))
     plt.close()
@@ -148,8 +149,10 @@ if __name__ == '__main__':
     plotagutrends ('ak02')
     plotagutrends ('ak06')
     plotagutrends ('ak05')
-
+    plotagutrends ('ak07')
     plotagutrends ('ak10')
+    plotagutrends ('ak11')
+    plotagutrends ('ak12')
     sys.exit(0)
 
 
