@@ -114,6 +114,7 @@ def findPinHoleInImages(imagelist, args):
     ys = []
     images = []
     dos = []
+    global reprocess
 
     # imagelist = glob.glob (imagepath)
     pool = mp.Pool(processes=args.ncpu)
@@ -145,10 +146,7 @@ def parseCommandLine():
 
 if __name__ == '__main__':
     args = parseCommandLine()
-
     agupinholedb.create_db(args.database)
     dbsession = agupinholedb.get_session(args.database)
-
     findPinHoleInImages(args.inputfiles, args)
-
     sys.exit(0)
