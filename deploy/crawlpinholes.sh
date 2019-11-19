@@ -5,7 +5,7 @@ database="sqlite:///agupinholelocations.sqlite"
 
 base=/archive/engineering
 cameras="ak??"
-sites="cpt lsc tlv"
+sites="cpt lsc tlv elp"
 dates="20190???"
 
 inputselection="*-e00.fits.fz"
@@ -25,7 +25,7 @@ for site in $sites; do
      searchpath=${day}/raw/${inputselection}
      searchpath=`ls $searchpath | shuf -n 400 |  xargs  echo`
      echo "Searchpath is $searchpath"
-     sem  -j $NCPU python agupinholesearch.py --loglevel INFO --database ${database} $searchpath
+     sem  -j $NCPU python aguanalysis/agupinholesearch.py --loglevel INFO --database ${database} $searchpath
 
    done
 
@@ -36,4 +36,4 @@ done
 
 sem --wait
 
-python aguanalysis.py --database ${database}
+python aguanalysis/aguanalysis.py --database ${database}

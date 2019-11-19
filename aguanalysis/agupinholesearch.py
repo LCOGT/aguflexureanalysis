@@ -1,5 +1,4 @@
 import multiprocessing as mp
-import glob
 import numpy as np
 import scipy.signal
 from scipy import ndimage
@@ -8,7 +7,7 @@ from astropy.time import Time
 import astropy.stats
 import sys
 import logging
-import agupinholedb
+import agupinholedb as agupinholedb
 import argparse
 import matplotlib.pyplot as plt
 
