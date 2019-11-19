@@ -6,11 +6,11 @@ database="sqlite:///agupinholelocations.sqlite"
 base=/archive/engineering
 cameras="ak??"
 sites="cpt lsc tlv elp"
-dates="20190???"
+dates="201911??"
 
-inputselection="*-e00.fits.fz"
+inputselection="*-x00.fits.fz"
 
-NCPU=2
+NCPU=20
 
 for site in $sites; do
  for camera in $cameras; do
@@ -36,4 +36,5 @@ done
 
 sem --wait
 
-python aguanalysis/aguanalysis.py --database ${database}
+python aguanalysis/aguanalysis.py --database ${database} --outputpath /home/dharbeck/public_html/agupinhole
+
