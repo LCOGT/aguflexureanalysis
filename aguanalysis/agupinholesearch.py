@@ -1,6 +1,7 @@
 import multiprocessing as mp
 import numpy as np
 import scipy.signal
+from lcocommissioning.common.lcoarchivecrawler import ArchiveCrawler
 from scipy import ndimage
 from astropy.io import fits
 from astropy.time import Time
@@ -13,14 +14,14 @@ import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
 
-dbsession = None
 reprocess = False
-
+dbsession = None
 
 def findPinhole(imagename):
     """
         Find pinhole by cross-correlation with a template
     """
+    global dbsession
 
     if (args.reprocess is False) and (dbsession is not None):
         # test if image has been processed already.
@@ -48,12 +49,12 @@ def findPinhole(imagename):
     foctemp = float(image[1].header['WMSTEMP'])
     if 'ak05' in instrument:
         # fix central hot pixel
-        print ("Fix hot pixel")
-        hpx=716-1
-        hpy = 590-1
-        image[1].data[hpy,hpx] = 1/2. * (image[1].data[hpy,hpx+1] +image[1].data[hpy,hpx-1])
+        print("Fix hot pixel")
+        hpx = 716 - 1
+        hpy = 590 - 1
+        image[1].data[hpy, hpx] = 1 / 2. * (image[1].data[hpy, hpx + 1] + image[1].data[hpy, hpx - 1])
 
-    extractdata = image[1].data[CRPIX2 - 60: CRPIX2 + 59, CRPIX1 - 60: CRPIX1 + 59].astype (float)
+    extractdata = image[1].data[CRPIX2 - 60: CRPIX2 + 59, CRPIX1 - 60: CRPIX1 + 59].astype(float)
 
     image.close()
 
@@ -61,8 +62,8 @@ def findPinhole(imagename):
     background = np.median(image[1].data[350:-350, 350:-350])
     centerbackground = np.median(extractdata)
     if centerbackground > background + 2000:
-        print ("Elevated background - probably star contamination - ignoring\n"
-                       + " background: % 8.1f  cutout: % 8.1f" % (background, centerbackground))
+        print("Elevated background - probably star contamination - ignoring\n"
+              + " background: % 8.1f  cutout: % 8.1f" % (background, centerbackground))
         return
 
     # normalize data around window
@@ -72,7 +73,7 @@ def findPinhole(imagename):
     max = np.max(extractdata)
 
     extractdata = extractdata - background
-    extractdata = extractdata / (max-min)
+    extractdata = extractdata / (max - min)
     # extractdata = extractdata / astropy.stats.sigma_clip(extractdata, cenfunc='median')
     # extractdata = extractdata - astropy.stats.sigma_clip(extractdata, cenfunc='mean')
 
@@ -80,8 +81,8 @@ def findPinhole(imagename):
     cor = scipy.signal.correlate2d(extractdata, array, boundary='symm', mode='same')
     y, x = np.unravel_index(np.argmax(cor), cor.shape)
     center = ndimage.measurements.center_of_mass(cor[y - 15:y + 15, x - 15:x + 15])
-    xo=center[0] + x -15
-    yo=center[1] + x - 15
+    xo = center[0] + x - 15
+    yo = center[1] + x - 15
     x = center[0] + x - 15 + CRPIX1
     y = center[1] + y - 15 + CRPIX2
 
@@ -106,16 +107,9 @@ def findPinhole(imagename):
     return
 
 
-def findPinHoleInImages(imagelist, args):
-    alts = []
-    azs = []
-    xs = []
-    ys = []
-    images = []
-    dos = []
-    global reprocess
+def findPinHoleInImages(imagelist,  args):
 
-    # imagelist = glob.glob (imagepath)
+    global reprocess
     pool = mp.Pool(processes=args.ncpu)
     reprocess = args.reprocess
     pool.map(findPinhole, imagelist)
@@ -127,7 +121,7 @@ def parseCommandLine():
 
     parser = argparse.ArgumentParser(
         description='measure pinhole location in AGU images')
-    parser.add_argument('inputfiles', nargs='+', )
+
     parser.add_argument('--loglevel', dest='log_level', default='INFO', choices=['DEBUG', 'INFO'],
                         help='Set the debug level')
     parser.add_argument('--database', default='sqlite:///agupinholelocations.sqlite')
@@ -135,17 +129,32 @@ def parseCommandLine():
     parser.add_argument('--reprocess', action='store_true')
     parser.add_argument('--makepng', action='store_true')
 
+    parser.add_argument('--ndays', default=3, type=int, help="How many days to look into the past")
+    parser.add_argument('--cameratype', type=str, nargs='+', default=['ak??', ],
+                        help='Type of cameras to parse')
+
     args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
-
-    logging.info(args.inputfiles)
+    log.debug ("cameratype: {} ".format (args.cameratype))
     return args
 
 
 if __name__ == '__main__':
+
     args = parseCommandLine()
+
     agupinholedb.create_db(args.database)
     dbsession = agupinholedb.get_session(args.database)
-    findPinHoleInImages(args.inputfiles, args)
+
+    c = ArchiveCrawler()
+    dates = c.get_last_N_days(args.ndays)
+    cameras = c.find_cameras(sites=['lsc', 'elp', 'tlv', 'cpt'], cameras=args.cameratype)
+    log.debug ("Found cameras: {}\n Found days: {}".format (cameras, dates))
+
+    for camera in cameras:
+        for date in dates:
+            files = ArchiveCrawler.findfiles_for_camera_dates(camera, date, 'raw', "*[xe]00.fits*")
+            if len(files) > 0:
+                findPinHoleInImages(files, args)
     sys.exit(0)

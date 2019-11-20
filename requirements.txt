@@ -2,4 +2,7 @@ matplotlib
 astropy
 scipy
 numpy
+ephem
 sqlalchemy
+lcocommissioning
+requests
