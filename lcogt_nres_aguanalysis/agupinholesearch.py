@@ -157,6 +157,6 @@ if __name__ == '__main__':
             files = ArchiveDiskCrawler.findfiles_for_camera_dates(camera, date, 'raw', "*[xe]00.fits*")
             if (files is not None) and (len(files) > 0):
                 myfilenames = files['FILENAME']
-                print (f'processing list {myfilenames}')
                 findPinHoleInImages(myfilenames, args)
+    dbsession.close()
     sys.exit(0)
