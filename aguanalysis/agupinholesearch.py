@@ -1,7 +1,7 @@
 import multiprocessing as mp
 import numpy as np
 import scipy.signal
-from lcocommissioning.common.lcoarchivecrawler import ArchiveCrawler
+from lcocommissioning.common.lco_archive_utilities import ArchiveDiskCrawler
 from scipy import ndimage
 from astropy.io import fits
 from astropy.time import Time
@@ -147,14 +147,16 @@ if __name__ == '__main__':
     agupinholedb.create_db(args.database)
     dbsession = agupinholedb.get_session(args.database)
 
-    c = ArchiveCrawler()
-    dates = c.get_last_N_days(args.ndays)
+    c = ArchiveDiskCrawler()
+    dates = c.get_last_n_days(args.ndays)
     cameras = c.find_cameras(sites=['lsc', 'elp', 'tlv', 'cpt'], cameras=args.cameratype)
     log.debug ("Found cameras: {}\n Found days: {}".format (cameras, dates))
 
     for camera in cameras:
         for date in dates:
-            files = ArchiveCrawler.findfiles_for_camera_dates(camera, date, 'raw', "*[xe]00.fits*")
-            if len(files) > 0:
-                findPinHoleInImages(files, args)
+            files = ArchiveDiskCrawler.findfiles_for_camera_dates(camera, date, 'raw', "*[xe]00.fits*")
+            if (files is not None) and (len(files) > 0):
+                myfilenames = files['FILENAME']
+                print (f'processing list {myfilenames}')
+                findPinHoleInImages(myfilenames, args)
     sys.exit(0)

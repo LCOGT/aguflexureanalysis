@@ -3,21 +3,21 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import logging
 
-
 log = logging.getLogger(__name__)
 
 Base = declarative_base()
 
-class PinholeMeasurement (Base):
+
+class PinholeMeasurement(Base):
     __tablename__ = 'pinholemasurements'
 
-    imagename = Column (String, primary_key=True)
+    imagename = Column(String, primary_key=True)
     instrument = Column(String)
-    altitude = Column (Float)
+    altitude = Column(Float)
     azimut = Column(Float)
     xcenter = Column(Float)
-    ycenter= Column(Float)
-    dateobs = Column (DateTime)
+    ycenter = Column(Float)
+    dateobs = Column(DateTime)
     foctemp = Column(Float)
 
     def __repr__(self):
@@ -26,8 +26,10 @@ class PinholeMeasurement (Base):
             self.xcenter if self.xcenter is not None else 0,
             self.ycenter if self.ycenter is not None else 0)
 
+
 def doesRecordExists(session, filename):
-    ret = session.query (exists().where(PinholeMeasurement.imagename==filename)).scalar()
+    log.info (f"Checking if {filename} exists")
+    ret = session.query(exists().where(PinholeMeasurement.imagename == filename)).scalar()
     return ret
 
 
@@ -48,6 +50,7 @@ def get_session(db_address):
     session = db_session()
     return session
 
+
 def create_db(db_address):
     # Create an engine for the database
     engine = create_engine(db_address)
@@ -55,6 +58,3 @@ def create_db(db_address):
     # Create all tables in the engine
     # This only needs to be run once on initialization.
     Base.metadata.create_all(engine)
-
-
-
