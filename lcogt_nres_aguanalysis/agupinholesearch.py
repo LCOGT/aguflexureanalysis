@@ -1,6 +1,7 @@
 import concurrent
 import faulthandler
 import multiprocessing as mp
+from concurrent.futures.process import ProcessPoolExecutor
 from concurrent.futures.thread import ThreadPoolExecutor
 from itertools import repeat
 from multiprocessing.pool import ThreadPool
@@ -22,16 +23,11 @@ import warnings
 log = logging.getLogger(__name__)
 
 
-def findPinhole(imagename, dbsession, args):
+def findPinhole(imagename, args):
     """
         Find pinhole by cross-correlation with a template
     """
     log.debug(f"Processing pinhole in {imagename} ")
-    if (args.reprocess is False) and (dbsession is not None):
-        # test if image has been processed already.
-        if agupinholedb.doesRecordExists(dbsession, imagename):
-            log.debug("Image %s already has a record in database, skipping" % imagename)
-            return
 
     # Template
     radius = 7.5
@@ -110,21 +106,25 @@ def findPinhole(imagename, dbsession, args):
 
 def findPinHoleInImages(imagelist, dbsession, args):
     results = []
-    # TODO: This makes the out for loop give up.
-    # with ThreadPoolExecutor(max_workers=1) as e:
-    #
-    #     futures = [e.submit(findPinhole, image, dbsession, args) for image in imagelist[0:2]]
-    #
-    #   #  e.shutdown(wait=True)
-        # for future in concurrent.futures.as_completed(futures):
-        #     try:
-        #         # results.append(future.result())
-        #         pass
-        #     except:
-        #         log.exception("While reading back future)")
+    futures = []
 
-    for image in imagelist:
-        results.append (findPinhole(image, dbsession, args))
+    # TODO: This makes the out for loop give up.
+    with ProcessPoolExecutor(max_workers=args.ncpu) as e:
+        for image in imagelist:
+            if (args.reprocess is False) and (dbsession is not None):
+                # test if image has been processed already.
+                if agupinholedb.doesRecordExists(dbsession, image):
+                    log.debug("Image %s already has a record in database, skipping" % image)
+                continue
+
+            futures.append(e.submit(findPinhole, image, args))
+
+        e.shutdown(wait=True)
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                results.append(future.result())
+            except:
+                log.exception("While reading back future)")
 
     for datum in results:
         if datum is not None:
