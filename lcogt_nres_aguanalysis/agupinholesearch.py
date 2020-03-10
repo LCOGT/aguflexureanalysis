@@ -27,7 +27,6 @@ def findPinhole(imagename, dbsession, args):
         Find pinhole by cross-correlation with a template
     """
     log.debug(f"Processing pinhole in {imagename} ")
-    return None
     if (args.reprocess is False) and (dbsession is not None):
         # test if image has been processed already.
         if agupinholedb.doesRecordExists(dbsession, imagename):
