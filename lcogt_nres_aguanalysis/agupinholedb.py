@@ -28,8 +28,9 @@ class PinholeMeasurement(Base):
 
 
 def doesRecordExists(session, filename):
-    log.debug(f"Checking if {filename} exists")
+
     ret = session.query(exists().where(PinholeMeasurement.imagename == filename)).scalar()
+    log.debug(f"Checking if {filename} exists: {ret}")
     return ret
 
 
