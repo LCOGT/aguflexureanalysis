@@ -115,7 +115,7 @@ def findPinHoleInImages(imagelist, dbsession, args):
                 # test if image has been processed already.
                 if agupinholedb.doesRecordExists(dbsession, image):
                     log.debug("Image %s already has a record in database, skipping" % image)
-                continue
+                    continue
 
             futures.append(e.submit(findPinhole, image, args))
 
