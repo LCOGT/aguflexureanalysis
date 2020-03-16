@@ -1,10 +1,10 @@
-matplotlib
-astropy
-scipy
-numpy
-ephem
-sqlalchemy
+matplotlib==3.0.2
+astropy==3.1.1
+scipy==1.2.0
+numpy==1.16.1
+ephem==3.7.7.0
+sqlalchemy==1.2.17
 lcocommissioning==2.0.10
-requests
+requests==2.22.0
 elasticsearch==7.5.1
 elasticsearch_dsl==7.1.0

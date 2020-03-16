@@ -160,7 +160,7 @@ def parseCommandLine():
     return args
 
 
-if __name__ == '__main__':
+def main():
     faulthandler.enable()
     global args
     global reprocess
@@ -188,3 +188,7 @@ if __name__ == '__main__':
 
     dbsession.close()
     sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
