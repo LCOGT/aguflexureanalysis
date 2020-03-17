@@ -14,7 +14,7 @@ class PinholeMeasurement(Base):
     __tablename__ = 'pinholemasurements'
 
     imagename = Column(String, primary_key=True)
-    instrument = Column(String)
+    instrument = Column(String, index=True)
     altitude = Column(Float)
     azimut = Column(Float)
     xcenter = Column(Float)
