@@ -12,11 +12,12 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-import agupinholedb
+import lcogt_nres_aguanalysis.agupinholedb as agupinholedb
 import matplotlib.dates as mdates
 
 plt.style.use('ggplot')
 _logger = logging.getLogger(__name__)
+
 
 def readPinHoles(cameraname, sql):
     dbsession = agupinholedb.get_session(sql)
@@ -47,6 +48,7 @@ def readPinHoles(cameraname, sql):
            np.asarray(dobs), np.asanyarray(foctemps)
     dbsession.close()
 
+
 def dateformat():
     """ Utility to prettify a plot with dates.
     """
@@ -65,6 +67,7 @@ def dateformat():
     plt.setp(plt.gca().xaxis.get_minorticklabels(), rotation=45)
     plt.setp(plt.gca().xaxis.get_majorticklabels(), rotation=45)
     plt.gca().grid(which='minor')
+
 
 def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', outputpath='.'):
     images, alts, az, xs, ys, dobs, foctemps = readPinHoles(camera, sql)
@@ -186,10 +189,9 @@ def renderHTMLPage(args, cameras):
 """
 
     for camera in cameras:
-
         message = message + " <h2> %s </h2>\n" % (camera)
 
-        historyname ='longtermtrend_pinhole_{}.png'.format(camera)
+        historyname = 'longtermtrend_pinhole_{}.png'.format(camera)
         altazfile = 'altaztrends_pinhole_{}.png'.format(camera)
         tempfilename = 'foctemp_pinhole_{}.png'.format(camera)
         line = f'<a href="{historyname}"><img src="{historyname}" height="500"/></a>  ' \
@@ -204,14 +206,16 @@ def renderHTMLPage(args, cameras):
         f.close()
 
 
-
-if __name__ == '__main__':
-
+def main():
     args = parseCommandLine()
 
-    cameras = ['ak01', 'ak02', 'ak05', 'ak06','ak10', 'ak11', 'ak12']
+    cameras = ['ak01', 'ak02', 'ak05', 'ak06', 'ak10', 'ak11', 'ak12']
     for camera in cameras:
         plotagutrends(camera, outputpath=args.outputpath)
         pass
     renderHTMLPage(args, cameras)
     sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()

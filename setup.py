@@ -18,7 +18,7 @@ setuptools.setup(
     ],
     entry_points = {
         'console_scripts': ['agupinholesearch = lcogt_nres_aguanalysis.agupinholesearch:main',
-                             'aguanalysis = lcogt_nres_aguanalysis.agianalysis:main'],
+                             'aguanalysis = lcogt_nres_aguanalysis.aguanalysis:main'],
 
     }
 )

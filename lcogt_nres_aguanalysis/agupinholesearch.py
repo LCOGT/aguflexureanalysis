@@ -2,6 +2,7 @@ import argparse
 import concurrent
 import faulthandler
 import logging
+import os
 import sys
 import warnings
 from concurrent.futures.process import ProcessPoolExecutor
@@ -52,7 +53,7 @@ def findPinhole(imagename, args, frameid):
     foctemp = float(image[1].header['WMSTEMP'])
     if 'ak05' in instrument:
         # fix central hot pixel
-        print("Fix hot pixel")
+        log.debug("Fix hot pixel")
         hpx = 716 - 1
         hpy = 590 - 1
         image[1].data[hpy, hpx] = 1 / 2. * (image[1].data[hpy, hpx + 1] + image[1].data[hpy, hpx - 1])
@@ -114,7 +115,7 @@ def findPinHoleInImages(imagelist, dbsession, args):
     # TODO: This makes the out for loop give up.
     with ProcessPoolExecutor(max_workers=args.ncpu) as e:
         for image in imagelist:
-            imagefilename = str(image['filename'])
+            imagefilename = os.path.basename(str(image['filename']))
             imageid = int(image['frameid']) if args.useaws else None
             log.debug(f'Extracted file info: {imagefilename}  {imageid}')
             if (args.reprocess is False) and (dbsession is not None):
