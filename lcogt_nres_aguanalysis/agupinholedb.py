@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy import Column, Integer, Float, String, DateTime, create_engine, pool, exists
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -29,7 +31,7 @@ class PinholeMeasurement(Base):
 
 def doesRecordExists(session, filename):
 
-    ret = session.query(exists().where(PinholeMeasurement.imagename == filename)).scalar()
+    ret = session.query(exists().where(PinholeMeasurement.imagename == os.path.basename(filename))).scalar()
     log.debug(f"Checking if {filename} exists: {ret}")
     return ret
 

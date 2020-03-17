@@ -1,33 +1,33 @@
+import argparse
 import concurrent
 import faulthandler
-import multiprocessing as mp
+import logging
+import sys
+import warnings
 from concurrent.futures.process import ProcessPoolExecutor
-from concurrent.futures.thread import ThreadPoolExecutor
-from itertools import repeat
-from multiprocessing.pool import ThreadPool
 
+import astropy.stats
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal
-from lcocommissioning.common.lco_archive_utilities import ArchiveDiskCrawler
-from scipy import ndimage
 from astropy.io import fits
 from astropy.time import Time
-import astropy.stats
-import sys
-import logging
-import agupinholedb as agupinholedb
-import argparse
-import matplotlib.pyplot as plt
-import warnings
+from scipy import ndimage
+
+import lcogt_nres_aguanalysis.agupinholedb as agupinholedb
+from lcogt_awsarchiveaccess.lco_archive_utilities import get_frames_by_identifiers, download_from_archive
+from lcogt_awsarchiveaccess.lco_archive_utilities import ArchiveDiskCrawler
 
 log = logging.getLogger(__name__)
 
 
-def findPinhole(imagename, args):
+def findPinhole(imagename, args, frameid):
     """
         Find pinhole by cross-correlation with a template
+        if frameid is not none, fetch from archive
     """
-    log.debug(f"Processing pinhole in {imagename} ")
+
+    log.debug(f"Processing pinhole in {imagename} {frameid}")
 
     # Template
     radius = 7.5
@@ -38,7 +38,10 @@ def findPinhole(imagename, args):
     array = array - np.mean(array)
 
     # image
-    image = fits.open(imagename)
+    if frameid is None:
+        image = fits.open(imagename)
+    else:
+        image = download_from_archive(frameid)
 
     CRPIX1 = int(image[1].header['CRPIX1'])
     CRPIX2 = int(image[1].header['CRPIX2'])
@@ -62,9 +65,9 @@ def findPinhole(imagename, args):
     background = np.median(image[1].data[350:-350, 350:-350])
     centerbackground = np.median(extractdata)
     if centerbackground > background + 2000:
-        print("Elevated background - probably star contamination - ignoring\n"
-              + " background: % 8.1f  cutout: % 8.1f" % (background, centerbackground))
-        return
+        log.info("Elevated background - probably star contamination - ignoring\n"
+                 + " background: % 8.1f  cutout: % 8.1f" % (background, centerbackground))
+        return None
 
     # normalize data around window
 
@@ -98,9 +101,9 @@ def findPinhole(imagename, args):
         plt.savefig("center.png")
         plt.close()
 
-    measurement = agupinholedb.PinholeMeasurement(imagename=imagename, instrument=instrument, altitude=alt,
+    measurement = agupinholedb.PinholeMeasurement(imagename=str(imagename), instrument=instrument, altitude=alt,
                                                   azimut=az, xcenter=x, ycenter=y, dateobs=do, foctemp=foctemp)
-
+    log.info(f"Measurement: {measurement}")
     return measurement
 
 
@@ -111,15 +114,19 @@ def findPinHoleInImages(imagelist, dbsession, args):
     # TODO: This makes the out for loop give up.
     with ProcessPoolExecutor(max_workers=args.ncpu) as e:
         for image in imagelist:
+            imagefilename = str(image['filename'])
+            imageid = int(image['frameid']) if args.useaws else None
+            log.debug(f'Extracted file info: {imagefilename}  {imageid}')
             if (args.reprocess is False) and (dbsession is not None):
                 # test if image has been processed already.
-                if agupinholedb.doesRecordExists(dbsession, image):
+                if agupinholedb.doesRecordExists(dbsession, imagefilename):
                     log.debug("Image %s already has a record in database, skipping" % image)
                     continue
 
-            futures.append(e.submit(findPinhole, image, args))
+            futures.append(e.submit(findPinhole, imagefilename, args, imageid))
 
         e.shutdown(wait=True)
+
         for future in concurrent.futures.as_completed(futures):
             try:
                 results.append(future.result())
@@ -128,7 +135,7 @@ def findPinHoleInImages(imagelist, dbsession, args):
 
     for datum in results:
         if datum is not None:
-            log.debug("Adding to database: %s " % datum)
+            log.info("Adding to database: %s " % datum)
             dbsession.merge(datum)
 
     dbsession.commit()
@@ -148,6 +155,7 @@ def parseCommandLine():
     parser.add_argument('--ncpu', default=1, type=int)
     parser.add_argument('--reprocess', action='store_true')
     parser.add_argument('--makepng', action='store_true')
+    parser.add_argument('--useaws', action='store_true')
 
     parser.add_argument('--ndays', default=3, type=int, help="How many days to look into the past")
     parser.add_argument('--cameratype', type=str, nargs='+', default=['ak??', ],
@@ -173,19 +181,23 @@ def main():
 
     c = ArchiveDiskCrawler()
     dates = c.get_last_n_days(args.ndays)
-    cameras = c.find_cameras(sites=['lsc', 'elp', 'tlv', 'cpt'], cameras=args.cameratype)
+    if not args.useaws:
+        cameras = c.find_cameras(sites=['lsc', 'elp', 'tlv', 'cpt'], cameras=args.cameratype)
+    else:
+        cameras = ['ak01', 'ak02', 'ak05', 'ak06', 'ak10', 'ak11', 'ak12']
+
     log.info("Found cameras: {}".format(cameras))
 
     for camera in cameras:
-        log.info(f"Crawling Camera {camera} ")
+        log.info(f"Crawling {camera} ")
         for date in dates:
-            files = ArchiveDiskCrawler.findfiles_for_camera_dates(camera, date, 'raw', "*[xe]00.fits*")
-            log.info(f' {camera} / {date} has {len(files) if files is not None else "None"} images.')
+            if args.useaws:
+                files = get_frames_by_identifiers(date, camera=camera, mintexp=5, obstype='EXPERIMENTAL', rlevel=0)
+            else:
+                files = ArchiveDiskCrawler.findfiles_for_camera_dates(camera, date, 'raw', "*[x]00.fits*")
+            log.info(f'         {camera} / {date} has {len(files) if files is not None else "None"} images.')
             if (files is not None) and (len(files) > 0):
-                myfilenames = files['FILENAME']
-                findPinHoleInImages(myfilenames, dbsession, args)
-            log.info(f"Completed with date {date}")
-
+                findPinHoleInImages(files, dbsession, args)
     dbsession.close()
     sys.exit(0)
 

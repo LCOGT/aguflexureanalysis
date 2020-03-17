@@ -1,16 +1,67 @@
+import datetime
+import glob
+import io
 import logging
-from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search
-from astropy.table import Table
+import os
+
 import numpy as np
 import requests
 from astropy.io import fits
-import io
-import os
+from astropy.table import Table
 
-_logger = logging.getLogger(__name__)
+from elasticsearch import Elasticsearch
+from elasticsearch_dsl import Search
 
+log = logging.getLogger(__name__)
+logging.getLogger('elasticsearch').setLevel(logging.WARNING)
+logging.getLogger('connectionpool').setLevel(logging.WARNING)
+
+ARCHIVE_ROOT = "/archive/engineering"
 ARCHIVE_API_TOKEN = os.getenv('ARCHIVE_API_TOKEN', '')
+
+
+class ArchiveDiskCrawler:
+    ''' Legacy code from the good old times (2019) when the /archive mount was accessible, and everybody was happy in
+    the file system land.
+
+    Now everybody moved on to databases, object stores, and other witchcraft.
+
+    '''
+
+    archive_root = None
+
+    def __init__(self, rootdirectory=ARCHIVE_ROOT):
+        self.archive_root = rootdirectory
+
+    def find_cameras(self, sites=[], cameras=["fa??", "fs??", "kb??"]):
+        sitecameras = []
+        for site in sites:
+            for camera in cameras:
+                dir = "{}/{}/{}".format(self.archive_root, site, camera)
+                candiates = glob.glob(dir)
+                sitecameras.extend(candiates)
+        return sitecameras
+
+    @staticmethod
+    def get_last_n_days(lastNdays):
+        ''' Utility method to return the last N days as string YYYYMMDD, nicely arranged in an array.'''
+
+        date = []
+        today = datetime.datetime.utcnow()
+        for ii in range(lastNdays):
+            day = today - datetime.timedelta(days=ii)
+            date.append(day.strftime("%Y%m%d"))
+        return date[::-1]
+
+    @staticmethod
+    def findfiles_for_camera_dates(sitecamera, date, raworprocessed, filetempalte, prefix=""):
+        dir = "{}{}/{}/{}/{}".format(prefix, sitecamera, date, raworprocessed, filetempalte)
+        files = glob.glob(dir)
+        if (files is not None) and (len(files) > 0):
+            myfiles = np.asarray ([[f, "-1"] for f in files])
+            return Table(myfiles, names=['FILENAME', 'FRAMEID'])
+        return None
+
 
 
 def make_elasticsearch(index, filters, queries=None, exclusion_filters=None, range_filters=None, prefix_filters=None,
@@ -67,8 +118,8 @@ def make_elasticsearch(index, filters, queries=None, exclusion_filters=None, ran
     return s
 
 
-def get_frames_for_photometry(dayobs, site=None, cameratype=None, camera=None, mintexp=30,
-                              filterlist=['gp', 'rp', 'ip', 'zp'], es_url='http://elasticsearch.lco.gtn:9200'):
+def get_frames_by_identifiers(dayobs, site=None, cameratype=None, camera=None, mintexp=30, obstype = 'EXPOSE', rlevel=91,
+                              filterlist=None, es_url='http://elasticsearch.lco.gtn:9200'):
     """ Queries for a list of processed LCO images that are viable to get a photometric zeropoint in the griz bands measured.
 
         Selection criteria are by DAY-OBS, site, by camaera type (fs,fa,kb), what filters to use, and minimum exposure time.
@@ -76,18 +127,23 @@ def get_frames_for_photometry(dayobs, site=None, cameratype=None, camera=None, m
      """
 
     # TODO: further preselect by number of sources to avoid overly crowded or empty fields
-    query_filters = [{'DAY-OBS': dayobs}, {'RLEVEL': 91}, {'WCSERR': 0}, {"OBSTYPE": "EXPOSE"}, {
-        'FOCOBOFF': 0}]
+    query_filters = [{'DAY-OBS': dayobs},  {'FOCOBOFF': 0}]
     range_filters = [{'EXPTIME': {'gte': mintexp}}, ]
-    terms_filters = [{'FILTER': filterlist}]
+    terms_filters = []
     prefix_filters = []
 
     if site is not None:
         query_filters.append({'SITEID': site})
+    if obstype is not None:
+        query_filters.append({"OBSTYPE": obstype})
+    if rlevel is not None:
+        query_filters.append ({'RLEVEL': rlevel})
     if camera is not None:
         query_filters.append({'INSTRUME': camera})
     if cameratype is not None:
         prefix_filters.append({'INSTRUME': cameratype})
+    if filterlist is not None:
+        terms_filters.append ({'FILTER': filterlist})
 
     queries = []
     records = make_elasticsearch('fitsheaders', query_filters, queries, exclusion_filters=None, es_url=es_url,
@@ -100,6 +156,23 @@ def get_frames_for_photometry(dayobs, site=None, cameratype=None, camera=None, m
     return records_sanitized
 
 
+
+def filename_to_archivepath_dict(filenametable, rootpath='/archive/engineering'):
+    ''' Return a dictionary with camera -> list of FileIO-able path of imagers from an elastic search result.
+        We are still married to /archive file names here - because reasons. Long term we should go away from that.
+    '''
+
+    cameras = set(filenametable['INSTRUME'])
+    returndict = {}
+    for camera in cameras:
+        returndict[camera] = [['{}/{}/{}/{}/{}/{}'.format(rootpath, record['SITEID'], record['INSTRUME'],
+                                                          record['DAY-OBS'], 'raw', record['FILENAME']),
+                               record['frameid']] for record in filenametable[filenametable['INSTRUME'] == camera]]
+
+        returndict[camera] = Table(np.asarray(returndict[camera]), names=['FILENAME', 'frameid'])
+    return returndict
+
+
 def download_from_archive(frameid):
     """
     Download a file from the LCO archive by frame id.
@@ -107,16 +180,16 @@ def download_from_archive(frameid):
     :return: Astropy HDUList
     """
     url = f'https://archive-api.lco.global/frames/{frameid}'
-    _logger.info("Downloading image frameid {} from URL: {}".format(frameid, url))
+    log.info("Downloading image frameid {} from URL: {}".format(frameid, url))
     headers = {'Authorization': 'Token {}'.format(ARCHIVE_API_TOKEN)}
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     response_dict = response.json()
     if response_dict == {}:
-        _logger.warning("No file url was returned from id query")
+        log.warning("No file url was returned from id query")
         raise Exception('Could not find file remotely.')
     frame_url = response_dict['url']
-    _logger.debug(frame_url)
+    log.debug(frame_url)
     file_response = requests.get(frame_url)
     file_response.raise_for_status()
     f = fits.open(io.BytesIO(file_response.content))
