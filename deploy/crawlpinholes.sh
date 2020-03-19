@@ -1,8 +1,9 @@
 #!/bin/bash
 
-database="sqlite:///agupinholelocations.sqlite"
-ndays=90
-NCPU=2
+#DATABASE="sqlite:///agupinholelocations.sqlite"
 
-python lcogt_nres_aguanalysis/agupinholesearch.py --ndays ${ndays} --ncpu ${NCPU} --loglevel INFO --database ${database}
-#python aguanalysis/aguanalysis.py --database ${database} --outputpath /home/dharbeck/public_html/agupinhole
+ndays=3
+NCPU=1
+
+#agupinholesearch --ndays ${ndays} --ncpu ${NCPU} --loglevel INFO --database ${DATABASE} --useaws
+aguanalysis --database ${DATABASE} --outputpath /home/dharbeck/public_html/agupinhole

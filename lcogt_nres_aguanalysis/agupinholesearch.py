@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import warnings
+import math
 from concurrent.futures.process import ProcessPoolExecutor
 
 import astropy.stats
@@ -51,6 +52,9 @@ def findPinhole(imagename, args, frameid):
     do = Time(image[1].header['DATE-OBS'], format='isot', scale='utc').datetime
     instrument = image[1].header['INSTRUME']
     foctemp = float(image[1].header['WMSTEMP'])
+    site = str(image[1].header['SITEID'])
+    enclosure = str(image[1].header['ENCID'])
+    telescope = str(image[1].header['TELID'])
     if 'ak05' in instrument:
         # fix central hot pixel
         log.debug("Fix hot pixel")
@@ -103,7 +107,8 @@ def findPinhole(imagename, args, frameid):
         plt.close()
 
     measurement = agupinholedb.PinholeMeasurement(imagename=str(imagename), instrument=instrument, altitude=alt,
-                                                  azimut=az, xcenter=x, ycenter=y, dateobs=do, foctemp=foctemp)
+                                                  azimut=az, xcenter=x if math.isfinite(x) else None, ycenter=y if math.isfinite(y) else None, dateobs=do, foctemp=foctemp,
+                                                  telescopidentifier=f'{site}-{enclosure}-{telescope}', crpix1=CRPIX1, crpix2=CRPIX2)
     log.info(f"Measurement: {measurement}")
     return measurement
 

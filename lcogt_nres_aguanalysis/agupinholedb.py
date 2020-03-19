@@ -15,16 +15,19 @@ class PinholeMeasurement(Base):
 
     imagename = Column(String, primary_key=True)
     instrument = Column(String, index=True)
+    telescopidentifier = Column(String, index=True)  # Use SITE-ENCLOSURE-1m0a, e.g., lsc-domb-1m0a
     altitude = Column(Float)
     azimut = Column(Float)
     xcenter = Column(Float)
     ycenter = Column(Float)
+    crpix1 = Column(Float)
+    crpix2 = Column(Float)
     dateobs = Column(DateTime)
     foctemp = Column(Float)
 
     def __repr__(self):
-        return "<PinholeMeasurement(image='%s', instrument='%s', x='% 6.2f', y='% 6.2f')>" % (
-            self.imagename, self.instrument,
+        return "<PinholeMeasurement(image='%s', telescope='%s', instrument='%s', x='% 6.2f', y='% 6.2f')>" % (
+            self.imagename, self.telescopidentifier, self.instrument,
             self.xcenter if self.xcenter is not None else 0,
             self.ycenter if self.ycenter is not None else 0)
 
@@ -44,7 +47,8 @@ def get_session(db_address):
     session: SQLAlchemy Database Session
     """
     # Build a new engine for each session. This makes things thread safe.
-    engine = create_engine(db_address, poolclass=pool.NullPool)
+    engine = create_engine(db_address, poolclass=pool.NullPool, echo=False)
+    PinholeMeasurement.__table__.create(bind=engine, checkfirst=True)
     Base.metadata.bind = engine
 
     # We don't use autoflush typically. I have run into issues where SQLAlchemy would try to flush

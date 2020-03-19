@@ -87,7 +87,7 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
             xs[(dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
 
     index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
-    print("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
+    #print("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
     plt.subplot(211)
     plt.plot(dobs[index], xs[index], ',', label="pinhole x")
     plt.ylim([-15, 15])
@@ -209,9 +209,9 @@ def renderHTMLPage(args, cameras):
 def main():
     args = parseCommandLine()
 
-    cameras = ['ak01', 'ak02', 'ak05', 'ak06', 'ak10', 'ak11', 'ak12']
+    cameras = ['ak01', 'ak02', 'ak04', 'ak05', 'ak06', 'ak10', 'ak11', 'ak12']
     for camera in cameras:
-        plotagutrends(camera, outputpath=args.outputpath)
+        plotagutrends(camera, outputpath=args.outputpath, sql=args.database)
         pass
     renderHTMLPage(args, cameras)
     sys.exit(0)
