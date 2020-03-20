@@ -48,8 +48,8 @@ class PinholeMeasurement_v1(Base_v1):
     foctemp = Column(Float)
 
     def __repr__(self):
-        return "<PinholeMeasurement(image='%s', telescope='%s', instrument='%s', x='% 6.2f', y='% 6.2f')>" % (
-            self.imagename, self.telescopidentifier, self.instrument,
+        return "<PinholeMeasurement(image='%s', instrument='%s', x='% 6.2f', y='% 6.2f')>" % (
+            self.imagename,  self.instrument,
             self.xcenter if self.xcenter is not None else 0,
             self.ycenter if self.ycenter is not None else 0)
 

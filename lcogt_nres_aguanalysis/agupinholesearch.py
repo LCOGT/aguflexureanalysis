@@ -108,7 +108,7 @@ def findPinhole(imagename, args, frameid):
 
     measurement = agupinholedb.PinholeMeasurement(imagename=str(imagename), instrument=instrument, altitude=alt,
                                                   azimut=az, xcenter=x if math.isfinite(x) else None, ycenter=y if math.isfinite(y) else None, dateobs=do, foctemp=foctemp,
-                                                  telescopidentifier=f'{site}-{enclosure}-{telescope}', crpix1=CRPIX1, crpix2=CRPIX2)
+                                                  telescopeidentifier=f'{site}-{enclosure}-{telescope}', crpix1=CRPIX1, crpix2=CRPIX2)
     log.info(f"Measurement: {measurement}")
     return measurement
 
