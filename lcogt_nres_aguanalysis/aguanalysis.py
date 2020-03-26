@@ -7,16 +7,55 @@ Datapoints are retrieved from a database and plotted. that is it.
 """
 import argparse
 import datetime
+import io
 import logging
+import os
+import sys
 
+import boto3
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
-import sys
+
 import lcogt_nres_aguanalysis.agupinholedb as agupinholedb
-import matplotlib.dates as mdates
 
 plt.style.use('ggplot')
 _logger = logging.getLogger(__name__)
+logging.getLogger('matplotlib').setLevel(logging.FATAL)
+
+
+def aws_enabled():
+    '''Return True if AWS support is configured'''
+    access_key = os.environ.get('AWS_ACCESS_KEY_ID', None)
+    secret_key = os.environ.get('AWS_SECRET_ACCESS_KEY', None)
+    s3_bucket = os.environ.get('AWS_S3_BUCKET', None)
+    region = os.environ.get('AWS_DEFAULT_REGION', None)
+
+    return access_key and secret_key and s3_bucket and region
+
+
+def write_to_storage_backend(directory, filename, data, binary=True):
+    _logger.info (f"writing object {filename}")
+    if aws_enabled():
+        # AWS S3 Bucket upload
+        client = boto3.client('s3')
+        bucket = os.environ.get('AWS_S3_BUCKET', None)
+        try:
+            with io.BytesIO(data) as fileobj:
+                _logger.info(f'Write data to AWS S3: {bucket}/{filename}')
+                response = client.upload_fileobj(fileobj, bucket, filename)
+                _logger.info(f'Done writing data to AWS S3: {bucket}/{filename}')
+                return response
+        except:
+            _logger.exception(f"While storing object {filename} into S3 backend.")
+    else:
+        fullpath = os.path.join(directory, filename)
+        _logger.info (f'writing to file system {fullpath}')
+        with open(fullpath, 'wb' if binary else 'w') as fileobj:
+            fileobj.write(data)
+            return True
+
+
 
 
 def readPinHoles(cameraname, sql):
@@ -33,6 +72,8 @@ def readPinHoles(cameraname, sql):
     print(cameraname)
     resultset = dbsession.query(agupinholedb.PinholeMeasurement)
     resultset = resultset.filter(agupinholedb.PinholeMeasurement.instrument == cameraname)
+    # weed out vestigal bpl contamination. don't want that.
+    resultset = resultset.filter (~agupinholedb.PinholeMeasurement.imagename.contains('bpl'))
     for result in resultset:
         images.append(result.imagename)
         alt.append(result.altitude)
@@ -52,7 +93,7 @@ def readPinHoles(cameraname, sql):
 def dateformat():
     """ Utility to prettify a plot with dates.
     """
-    starttime = datetime.datetime(2017, 6, 1)
+    starttime = datetime.datetime(2017, 1, 1)
     endtime = datetime.datetime.now() + datetime.timedelta(days=7)
     plt.xlim([starttime, endtime])
     plt.gcf().autofmt_xdate()
@@ -80,11 +121,6 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     filteredy = ys * 0
     filteredx = xs * 0
     smallnumber = (np.abs(ys) < 15) & (np.abs(xs) < 15)
-    for ii in range(len(dobs)):
-        filteredy[ii] = ys[ii] - np.median(
-            ys[(dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
-        filteredx[ii] = xs[ii] - np.median(
-            xs[(dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
 
     index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
     #print("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
@@ -100,10 +136,23 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     plt.title("%s pinhole location in focus images Y" % (camera))
     dateformat()
     plt.tight_layout()
-    plt.savefig('{}/longtermtrend_pinhole_{}.png'.format(outputpath, camera))
-    plt.close()
+
+    with io.BytesIO() as fileobj:
+        filename = f'longtermtrend_pinhole_{camera}.png'
+        plt.savefig(fileobj, format='png', bbox_inches='tight')
+        plt.close()
+        write_to_storage_backend(outputpath, filename, fileobj.getvalue())
+
 
     plt.figure()
+
+    for ii in range(len(dobs)):
+        filteredy[ii] = ys[ii] - np.median(
+            ys[(dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
+        filteredx[ii] = xs[ii] - np.median(
+            xs[(dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
+
+
     plt.subplot(221)
     plt.plot(alts[index], filteredy[index] - np.nanmedian(filteredy[index]), ',', label="pinhole y")
     plt.legend()
@@ -129,8 +178,12 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     plt.xlabel('AZ')
 
     plt.tight_layout()
-    plt.savefig('{}/altaztrends_pinhole_{}.png'.format(outputpath, camera))
-    plt.close()
+    with io.BytesIO() as fileobj:
+        filename = f'altaztrends_pinhole_{camera}.png'
+        plt.savefig(fileobj, format='png', bbox_inches='tight')
+        plt.close()
+        write_to_storage_backend(outputpath, filename, fileobj.getvalue())
+
 
     plt.figure()
     plt.subplot(211)
@@ -151,8 +204,12 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     plt.ylabel("x-position")
     plt.xlabel("WMS temp [\deg C]")
 
-    plt.savefig("{}/foctemp_pinhole_{}.png".format(outputpath, camera))
-    plt.close()
+    with io.BytesIO() as fileobj:
+        filename = f'foctemp_pinhole_{camera}.png'
+        plt.savefig(fileobj, format='png', bbox_inches='tight')
+        plt.close()
+        write_to_storage_backend(outputpath, filename, fileobj.getvalue())
+
 
 
 def parseCommandLine():
@@ -175,6 +232,9 @@ def parseCommandLine():
 
 
 def renderHTMLPage(args, cameras):
+    if aws_enabled():
+        _logger.info("Since we are working in the context of a AWS bucket, no local index.html is generated here")
+        return
     _logger.info("Now rendering output html page")
 
     outputfile = "%s/index.html" % (args.outputpath)
@@ -210,6 +270,7 @@ def main():
     args = parseCommandLine()
 
     cameras = ['ak01', 'ak02', 'ak04', 'ak05', 'ak06', 'ak10', 'ak11', 'ak12']
+    cameras = ['ak01',]
     for camera in cameras:
         plotagutrends(camera, outputpath=args.outputpath, sql=args.database)
         pass
