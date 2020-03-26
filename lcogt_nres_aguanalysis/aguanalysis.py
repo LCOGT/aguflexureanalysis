@@ -13,6 +13,7 @@ import os
 import sys
 
 import boto3
+import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,27 +36,24 @@ def aws_enabled():
 
 
 def write_to_storage_backend(directory, filename, data, binary=True):
-    _logger.info (f"writing object {filename}")
     if aws_enabled():
         # AWS S3 Bucket upload
         client = boto3.client('s3')
         bucket = os.environ.get('AWS_S3_BUCKET', None)
         try:
             with io.BytesIO(data) as fileobj:
-                _logger.info(f'Write data to AWS S3: {bucket}/{filename}')
+                _logger.debug(f'Write data to AWS S3: {bucket}/{filename}')
                 response = client.upload_fileobj(fileobj, bucket, filename)
-                _logger.info(f'Done writing data to AWS S3: {bucket}/{filename}')
+                _logger.debug(f'Done writing data to AWS S3: {bucket}/{filename}')
                 return response
         except:
             _logger.exception(f"While storing object {filename} into S3 backend.")
     else:
         fullpath = os.path.join(directory, filename)
-        _logger.info (f'writing to file system {fullpath}')
+        _logger.info(f'writing to file system {fullpath}')
         with open(fullpath, 'wb' if binary else 'w') as fileobj:
             fileobj.write(data)
             return True
-
-
 
 
 def readPinHoles(cameraname, sql):
@@ -73,7 +71,7 @@ def readPinHoles(cameraname, sql):
     resultset = dbsession.query(agupinholedb.PinholeMeasurement)
     resultset = resultset.filter(agupinholedb.PinholeMeasurement.instrument == cameraname)
     # weed out vestigal bpl contamination. don't want that.
-    resultset = resultset.filter (~agupinholedb.PinholeMeasurement.imagename.contains('bpl'))
+    resultset = resultset.filter(~agupinholedb.PinholeMeasurement.imagename.contains('bpl'))
     for result in resultset:
         images.append(result.imagename)
         alt.append(result.altitude)
@@ -111,6 +109,10 @@ def dateformat():
 
 
 def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', outputpath='.'):
+    plt.style.use('ggplot')
+    matplotlib.rcParams['savefig.dpi'] = 300
+    matplotlib.rcParams['figure.figsize'] = (8.0,6.0)
+
     images, alts, az, xs, ys, dobs, foctemps = readPinHoles(camera, sql)
     print("Found {} entries".format(len(images)))
     index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
@@ -123,7 +125,7 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     smallnumber = (np.abs(ys) < 15) & (np.abs(xs) < 15)
 
     index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
-    #print("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
+    # print("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
     plt.subplot(211)
     plt.plot(dobs[index], xs[index], ',', label="pinhole x")
     plt.ylim([-15, 15])
@@ -139,10 +141,10 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
 
     with io.BytesIO() as fileobj:
         filename = f'longtermtrend_pinhole_{camera}.png'
+        plt.gcf().set_size_inches(12,6)
         plt.savefig(fileobj, format='png', bbox_inches='tight')
         plt.close()
         write_to_storage_backend(outputpath, filename, fileobj.getvalue())
-
 
     plt.figure()
 
@@ -151,7 +153,6 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
             ys[(dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
         filteredx[ii] = xs[ii] - np.median(
             xs[(dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
-
 
     plt.subplot(221)
     plt.plot(alts[index], filteredy[index] - np.nanmedian(filteredy[index]), ',', label="pinhole y")
@@ -184,7 +185,6 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
         plt.close()
         write_to_storage_backend(outputpath, filename, fileobj.getvalue())
 
-
     plt.figure()
     plt.subplot(211)
     plt.title("%s pinhole location in focus images " % (camera))
@@ -209,7 +209,6 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
         plt.savefig(fileobj, format='png', bbox_inches='tight')
         plt.close()
         write_to_storage_backend(outputpath, filename, fileobj.getvalue())
-
 
 
 def parseCommandLine():
