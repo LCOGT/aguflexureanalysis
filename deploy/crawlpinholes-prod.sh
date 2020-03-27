@@ -1,7 +1,7 @@
 #!/bin/bash
 
-ndays=4
-NCPU=1
+N_DAYS=${N_DAYS:3}"
+N_CPU=${N_CPU:1}"
 
 # PostgreSQL Database Configuration using the LCO standard for database
 # connection configuration in containerized projects.
@@ -15,5 +15,5 @@ DB_PASS="${DB_PASS:-undefined}"
 DATABASE="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
 
-agupinholesearch --ndays ${ndays} --ncpu ${NCPU} --loglevel INFO --database ${DATABASE} --useaws
+agupinholesearch --ndays ${N_DAYS} --ncpu ${N_CPU} --loglevel INFO --database ${DATABASE} --useaws
 aguanalysis --database ${DATABASE}
