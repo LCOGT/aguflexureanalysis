@@ -67,7 +67,7 @@ def readPinHoles(cameraname, sql):
     dobs = []
     foctemps = []
 
-    print(cameraname)
+    _logger.info (f"Working on {cameraname}")
     resultset = dbsession.query(agupinholedb.PinholeMeasurement)
     resultset = resultset.filter(agupinholedb.PinholeMeasurement.instrument == cameraname)
     # weed out vestigal bpl contamination. don't want that.
@@ -114,7 +114,7 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     matplotlib.rcParams['figure.figsize'] = (8.0,6.0)
 
     images, alts, az, xs, ys, dobs, foctemps = readPinHoles(camera, sql)
-    print("Found {} entries".format(len(images)))
+    _logger.info("Found {} entries".format(len(images)))
     index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
     xs = xs - np.nanmedian(xs[index])
     ys = ys - np.nanmedian(ys[index])
@@ -127,13 +127,13 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
     # print("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
     plt.subplot(211)
-    plt.plot(dobs[index], xs[index], ',', label="pinhole x")
+    plt.plot(dobs[index], xs[index], '.', label="pinhole x",  markersize=1)
     plt.ylim([-15, 15])
     plt.title("%s pinhole location in focus images X" % (camera))
     dateformat()
 
     plt.subplot(212)
-    plt.plot(dobs[index], ys[index], ',', label="pinhole y")
+    plt.plot(dobs[index], ys[index], '.', label="pinhole y",  markersize=1)
     plt.ylim([-15, 15])
     plt.title("%s pinhole location in focus images Y" % (camera))
     dateformat()
@@ -155,25 +155,25 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
             xs[(dobs > dobs[ii] - timewindow) & (dobs < dobs[ii] + timewindow) & (smallnumber)])
 
     plt.subplot(221)
-    plt.plot(alts[index], filteredy[index] - np.nanmedian(filteredy[index]), ',', label="pinhole y")
+    plt.plot(alts[index], filteredy[index] - np.nanmedian(filteredy[index]), '.', label="pinhole y",  markersize=2)
     plt.legend()
     plt.ylim([-15, 15])
     plt.xlabel('ALT')
 
     plt.subplot(222)
-    plt.plot(az[index], filteredy[index] - np.nanmedian(filteredy[index]), ',', label="pinhole y")
+    plt.plot(az[index], filteredy[index] - np.nanmedian(filteredy[index]), '.', label="pinhole y",  markersize=2)
     plt.ylim([-15, 15])
     plt.legend()
     plt.xlabel('AZ')
 
     plt.subplot(223)
-    plt.plot(alts[index], filteredx[index] - np.nanmedian(filteredx[index]), ',', label="pinhole x")
+    plt.plot(alts[index], filteredx[index] - np.nanmedian(filteredx[index]), '.', label="pinhole x",  markersize=2)
     plt.ylim([-15, 15])
     plt.legend()
     plt.xlabel('ALT')
 
     plt.subplot(224)
-    plt.plot(az[index], filteredx[index] - np.nanmedian(filteredx[index]), ',', label="pinhole x")
+    plt.plot(az[index], filteredx[index] - np.nanmedian(filteredx[index]), '.', label="pinhole x",  markersize=2)
     plt.ylim([-15, 15])
     plt.legend()
     plt.xlabel('AZ')
@@ -189,7 +189,7 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     plt.subplot(211)
     plt.title("%s pinhole location in focus images " % (camera))
 
-    plt.plot(foctemps[index], xs[index], ",", label="pinhole x")
+    plt.plot(foctemps[index], xs[index], ".", label="pinhole x",  markersize=2)
     plt.ylabel("x-position")
     plt.xlabel("WMS temp [\deg C]")
     plt.ylim([-15, 15])
@@ -198,7 +198,7 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     plt.subplot(212)
     plt.title("%s pinhole location in focus images " % (camera))
 
-    plt.plot(foctemps[index], ys[index], ",", label="pinhole x")
+    plt.plot(foctemps[index], ys[index], ".", label="pinhole x",  markersize=2)
     plt.ylim([-15, 15])
     plt.xlim([-10, 35])
     plt.ylabel("x-position")
