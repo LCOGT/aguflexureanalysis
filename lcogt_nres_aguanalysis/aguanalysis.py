@@ -66,6 +66,8 @@ def readPinHoles(cameraname, sql):
     ys = []
     dobs = []
     foctemps = []
+    crpix1 = []
+    crpix2 = []
 
     _logger.info (f"Working on {cameraname}")
     resultset = dbsession.query(agupinholedb.PinholeMeasurement)
@@ -80,11 +82,14 @@ def readPinHoles(cameraname, sql):
         ys.append(result.ycenter)
         dobs.append(result.dateobs)
         foctemps.append(result.foctemp)
+        crpix1.append (result.crpix1)
+        crpix2.append (result.crpix2)
 
     return images, np.asarray(alt), np.asarray(az), \
            np.asarray(xs, dtype=np.float32), \
            np.asarray(ys, dtype=np.float32), \
-           np.asarray(dobs), np.asanyarray(foctemps)
+           np.asarray(dobs), np.asanyarray(foctemps), \
+           np.asarray (crpix1), np.asarray(crpix2)
     dbsession.close()
 
 
@@ -113,7 +118,7 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     matplotlib.rcParams['savefig.dpi'] = 300
     matplotlib.rcParams['figure.figsize'] = (8.0,6.0)
 
-    images, alts, az, xs, ys, dobs, foctemps = readPinHoles(camera, sql)
+    images, alts, az, xs, ys, dobs, foctemps, crpix1, crpix2 = readPinHoles(camera, sql)
     _logger.info("Found {} entries".format(len(images)))
     index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
     xs = xs - np.nanmedian(xs[index])
@@ -268,7 +273,7 @@ def renderHTMLPage(args, cameras):
 def main():
     args = parseCommandLine()
 
-    cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12']
+    cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12', 'ak13']
 
     for camera in cameras:
         plotagutrends(camera, outputpath=args.outputpath, sql=args.database)
