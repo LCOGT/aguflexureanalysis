@@ -273,7 +273,7 @@ def renderHTMLPage(args, cameras):
 def main():
     args = parseCommandLine()
 
-    cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12', 'ak13']
+    cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12', 'ak13', 'ak14', ]
 
     for camera in cameras:
         plotagutrends(camera, outputpath=args.outputpath, sql=args.database)
