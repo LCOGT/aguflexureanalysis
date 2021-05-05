@@ -24,6 +24,7 @@ plt.style.use('ggplot')
 _logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib').setLevel(logging.FATAL)
 
+available_cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12', 'ak13', 'ak14', ]
 
 def aws_enabled():
     '''Return True if AWS support is configured'''
@@ -69,11 +70,12 @@ def readPinHoles(cameraname, sql):
     crpix1 = []
     crpix2 = []
 
-    _logger.info (f"Working on {cameraname}")
+    _logger.debug (f"Working on {cameraname}")
     resultset = dbsession.query(agupinholedb.PinholeMeasurement)
     resultset = resultset.filter(agupinholedb.PinholeMeasurement.instrument == cameraname)
     # weed out vestigal bpl contamination. don't want that.
     resultset = resultset.filter(~agupinholedb.PinholeMeasurement.imagename.contains('bpl'))
+    resultset = resultset.order_by (agupinholedb.PinholeMeasurement.dateobs)
     for result in resultset:
         images.append(result.imagename)
         alt.append(result.altitude)
@@ -111,6 +113,34 @@ def dateformat():
     plt.setp(plt.gca().xaxis.get_minorticklabels(), rotation=45)
     plt.setp(plt.gca().xaxis.get_majorticklabels(), rotation=45)
     plt.gca().grid(which='minor')
+
+
+
+def findrecentPinhole(camera='ak14', sql='sqlite:///agupinholelocations.sqlite'):
+
+    images, alts, az, xs, ys, dobs, foctemps, crpix1, crpix2 = readPinHoles(camera, sql)
+
+    _logger.info("Found {} entries".format(len(images)))
+
+    ## Start determining the most recent pinhole location
+    recent_x = recent_y = None
+    if len (dobs) > 10:
+        lastdayobs = dobs[-1]
+        recentindex = dobs > lastdayobs - datetime.timedelta (days=7)
+        if sum(recentindex) < 7:
+            _logger.info ("Not enough pinhole locations measured")
+            return None, None
+
+        recent_x = np.median(xs[recentindex])
+        recent_y = np.median(ys[recentindex])
+
+        crx = np.median (crpix1[recentindex])
+        cry = np.median (crpix2[recentindex])
+
+        _logger.info (f"Best pinhole: {recent_x} / {recent_y}, compare to CRPIX {crx} / {cry}")
+
+
+
 
 
 def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', outputpath='.'):
@@ -228,6 +258,7 @@ def parseCommandLine():
     parser.add_argument('--database', default='sqlite:///agupinholelocations.sqlite')
     parser.add_argument('--ncpu', default=1, type=int)
     parser.add_argument('--outputpath', default="aguhistory", help="Root directory for output")
+    parser.add_argument('--camera',  choices=available_cameras, help='only process single selected camera')
 
     args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
@@ -272,13 +303,13 @@ def renderHTMLPage(args, cameras):
 
 def main():
     args = parseCommandLine()
-
-    cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12', 'ak13', 'ak14', ]
+    cameras = available_cameras if args.camera is None else [args.camera, ]
 
     for camera in cameras:
-        plotagutrends(camera, outputpath=args.outputpath, sql=args.database)
+        #plotagutrends(camera, outputpath=args.outputpath, sql=args.database)
+        findrecentPinhole(camera, sql=args.database)
         pass
-    renderHTMLPage(args, cameras)
+    #renderHTMLPage(args, cameras)
     sys.exit(0)
 
 

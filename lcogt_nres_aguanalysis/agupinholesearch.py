@@ -22,6 +22,9 @@ from lcogt_awsarchiveaccess.lco_archive_utilities import ArchiveDiskCrawler
 
 log = logging.getLogger(__name__)
 
+TEMPLATE_FRAMESIZE = 50
+TEMPLATE_RADIUS = 7.5
+EXTRACT_FRAMESIZE = 60
 
 def findPinhole(imagename, args, frameid):
     """
@@ -31,11 +34,10 @@ def findPinhole(imagename, args, frameid):
 
     log.debug(f"Processing pinhole in {imagename} {frameid}")
 
-    # Template
-    radius = 7.5
-    y, x = np.ogrid[-50:50, -50:50]
-    mask = x * x + y * y <= radius * radius
-    array = np.ones((100, 100))
+    # Create a template
+    y, x = np.ogrid[-TEMPLATE_FRAMESIZE:TEMPLATE_FRAMESIZE, -TEMPLATE_FRAMESIZE:TEMPLATE_FRAMESIZE]
+    mask = x * x + y * y <= TEMPLATE_RADIUS * TEMPLATE_RADIUS
+    array = np.ones((TEMPLATE_FRAMESIZE * 2, TEMPLATE_FRAMESIZE * 2))
     array[mask] = 0
     array = array - np.mean(array)
 
@@ -45,6 +47,7 @@ def findPinhole(imagename, args, frameid):
     else:
         image = download_from_archive(frameid)
 
+    # CRPIX1/2 is an ok prior for the pinhole location within 10 pixels at least.
     CRPIX1 = int(image[1].header['CRPIX1'])
     CRPIX2 = int(image[1].header['CRPIX2'])
     az = image[1].header['AZIMUTH']
@@ -57,52 +60,59 @@ def findPinhole(imagename, args, frameid):
     telescope = str(image[1].header['TELID'])
     if 'ak05' in instrument:
         # fix central hot pixel
-        log.debug("Fix hot pixel")
+        log.debug("Fix ak05 hot pixel")
         hpx = 716 - 1
         hpy = 590 - 1
         image[1].data[hpy, hpx] = 1 / 2. * (image[1].data[hpy, hpx + 1] + image[1].data[hpy, hpx - 1])
 
-    extractdata = image[1].data[CRPIX2 - 60: CRPIX2 + 59, CRPIX1 - 60: CRPIX1 + 59].astype(float)
 
+    extractdata = image[1].data[CRPIX2 - EXTRACT_FRAMESIZE: CRPIX2 + (EXTRACT_FRAMESIZE-1),
+                  CRPIX1 - EXTRACT_FRAMESIZE: CRPIX1 + (EXTRACT_FRAMESIZE-1)].astype(float)
+    imagebackground = np.median(image[1].data[350:-350, 350:-350])
     image.close()
 
-    # check if pinhole is iluminated by star. if so, reject
-    background = np.median(image[1].data[350:-350, 350:-350])
+    # check if pinhole is illuminated by star. if so, reject
     centerbackground = np.median(extractdata)
-    if centerbackground > background + 2000:
+    if centerbackground > imagebackground + 2000:
         log.info("Elevated background - probably star contamination - ignoring\n"
-                 + " background: % 8.1f  cutout: % 8.1f" % (background, centerbackground))
+                 + " background: % 8.1f  cutout: % 8.1f" % (imagebackground, centerbackground))
         return None
 
     # normalize data around window
-
-    med = astropy.stats.sigma_clip(extractdata, cenfunc='median')
+    std = np.std (extractdata)
+    extractdata[extractdata > centerbackground + 5 * std] = centerbackground
     min = np.min(extractdata)
     max = np.max(extractdata)
-
-    extractdata = extractdata - background
+    extractdata = extractdata - centerbackground
     extractdata = extractdata / (max - min)
-    # extractdata = extractdata / astropy.stats.sigma_clip(extractdata, cenfunc='median')
-    # extractdata = extractdata - astropy.stats.sigma_clip(extractdata, cenfunc='mean')
 
     # correlate and find centroid of correlation
     cor = scipy.signal.correlate2d(extractdata, array, boundary='symm', mode='same')
-    y, x = np.unravel_index(np.argmax(cor), cor.shape)
-    center = ndimage.measurements.center_of_mass(cor[y - 15:y + 15, x - 15:x + 15])
-    xo = center[0] + x - 15
-    yo = center[1] + x - 15
-    x = center[0] + x - 15 + CRPIX1
-    y = center[1] + y - 15 + CRPIX2
+    peak_y, peak_x = np.unravel_index(np.argmax(cor), cor.shape)
+
+    center = ndimage.measurements.center_of_mass(cor[peak_y - 15:peak_y + 15, peak_x - 15: peak_x + 15])
+    print (center)
+    xo = center[1] + (peak_x - 15)
+    yo = center[0] + (peak_y - 15)
+
+    x =  xo + (CRPIX1 - EXTRACT_FRAMESIZE) + 1.5 # IRAF / FITS starts at pixel 1, and is center of pixel
+    y =  yo + (CRPIX2 - EXTRACT_FRAMESIZE) + 1.5
+
+    ## FITS starts stuff at 1
 
     if args.makepng:
         plt.figure()
         plt.imshow(extractdata, clim=(-1, 1))
         plt.colorbar()
         plt.savefig("rawimage.png")
+
         plt.imshow(cor)
+        plt.plot(peak_x, peak_y, 'x', color='red')
+        plt.plot(xo, yo, 'x', color='blue')
         plt.savefig("correlation")
+
         plt.imshow(extractdata, clim=(-1, 1))
-        plt.plot(xo, yo, 'o')
+        plt.plot(xo, yo, 'x', color='red')
         plt.savefig("center.png")
         plt.close()
 
