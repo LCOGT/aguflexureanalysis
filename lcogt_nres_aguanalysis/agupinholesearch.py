@@ -23,7 +23,7 @@ from lcogt_awsarchiveaccess.lco_archive_utilities import ArchiveDiskCrawler
 log = logging.getLogger(__name__)
 
 TEMPLATE_FRAMESIZE = 50
-TEMPLATE_RADIUS = 7.5
+TEMPLATE_RADIUS = 6
 EXTRACT_FRAMESIZE = 60
 
 def findPinhole(imagename, args, frameid):
@@ -38,7 +38,7 @@ def findPinhole(imagename, args, frameid):
     y, x = np.ogrid[-TEMPLATE_FRAMESIZE:TEMPLATE_FRAMESIZE, -TEMPLATE_FRAMESIZE:TEMPLATE_FRAMESIZE]
     mask = x * x + y * y <= TEMPLATE_RADIUS * TEMPLATE_RADIUS
     array = np.ones((TEMPLATE_FRAMESIZE * 2, TEMPLATE_FRAMESIZE * 2))
-    array[mask] = 0
+    array[mask] = -1
     array = array - np.mean(array)
 
     # image
@@ -61,59 +61,67 @@ def findPinhole(imagename, args, frameid):
     if 'ak05' in instrument:
         # fix central hot pixel
         log.debug("Fix ak05 hot pixel")
-        hpx = 716 - 1
+        hpx = 716 - 1 # ds9 coordinate, 1-indexed.
         hpy = 590 - 1
         image[1].data[hpy, hpx] = 1 / 2. * (image[1].data[hpy, hpx + 1] + image[1].data[hpy, hpx - 1])
 
-
     extractdata = image[1].data[CRPIX2 - EXTRACT_FRAMESIZE: CRPIX2 + (EXTRACT_FRAMESIZE-1),
                   CRPIX1 - EXTRACT_FRAMESIZE: CRPIX1 + (EXTRACT_FRAMESIZE-1)].astype(float)
+
     imagebackground = np.median(image[1].data[350:-350, 350:-350])
     image.close()
 
     # check if pinhole is illuminated by star. if so, reject
-    centerbackground = np.median(extractdata)
-    if centerbackground > imagebackground + 2000:
+    centerbackground = np.mean(extractdata)
+    if centerbackground > imagebackground + 50:
         log.info("Elevated background - probably star contamination - ignoring\n"
                  + " background: % 8.1f  cutout: % 8.1f" % (imagebackground, centerbackground))
         return None
 
-    # normalize data around window
+    # remove outliers (like hot pixels) and normalize data around window, normalize data to [-1 ... +1]
+    centerbackground = np.median(extractdata)
     std = np.std (extractdata)
     extractdata[extractdata > centerbackground + 5 * std] = centerbackground
     min = np.min(extractdata)
-    max = np.max(extractdata)
-    extractdata = extractdata - centerbackground
-    extractdata = extractdata / (max - min)
+    max = np.median(extractdata) + 3 * std
+    extractdata[extractdata>max] = max
+
+    extractdata = extractdata - min
+    extractdata = extractdata / (0.5 * (max - min)) - 1
 
     # correlate and find centroid of correlation
     cor = scipy.signal.correlate2d(extractdata, array, boundary='symm', mode='same')
     peak_y, peak_x = np.unravel_index(np.argmax(cor), cor.shape)
+    center = ndimage.measurements.center_of_mass(cor[peak_y - TEMPLATE_RADIUS*3:peak_y + TEMPLATE_RADIUS*3, peak_x - TEMPLATE_RADIUS*3: peak_x + TEMPLATE_RADIUS*3])
 
-    center = ndimage.measurements.center_of_mass(cor[peak_y - 15:peak_y + 15, peak_x - 15: peak_x + 15])
-    print (center)
-    xo = center[1] + (peak_x - 15)
-    yo = center[0] + (peak_y - 15)
+    xo = center[1] + (peak_x - TEMPLATE_RADIUS*3) + 1 # needed to center the coordinate. not sure why.
+    yo = center[0] + (peak_y - TEMPLATE_RADIUS*3) + 1
 
-    x =  xo + (CRPIX1 - EXTRACT_FRAMESIZE) + 1.5 # IRAF / FITS starts at pixel 1, and is center of pixel
-    y =  yo + (CRPIX2 - EXTRACT_FRAMESIZE) + 1.5
+    peak_x + peak_x + 1
+    peak_y + peak_y + 1
+
+    x =  xo + (CRPIX1 - EXTRACT_FRAMESIZE) + 1 # IRAF / FITS starts at pixel 1, and is center of pixel
+    y =  yo + (CRPIX2 - EXTRACT_FRAMESIZE) + 1
 
     ## FITS starts stuff at 1
 
     if args.makepng:
-        plt.figure()
-        plt.imshow(extractdata, clim=(-1, 1))
-        plt.colorbar()
-        plt.savefig("rawimage.png")
 
         plt.imshow(cor)
         plt.plot(peak_x, peak_y, 'x', color='red')
         plt.plot(xo, yo, 'x', color='blue')
-        plt.savefig("correlation")
+        plt.title (os.path.basename (imagename))
+        plt.colorbar()
+        plt.savefig(f"correlation-{os.path.basename (imagename)}.png", dpi=300)
+        plt.close()
 
         plt.imshow(extractdata, clim=(-1, 1))
-        plt.plot(xo, yo, 'x', color='red')
-        plt.savefig("center.png")
+        plt.plot(xo, yo, 'o', color='red')
+        plt.plot(xo, yo, 'x', color='green')
+
+        plt.colorbar()
+        plt.title (os.path.basename (imagename))
+        plt.savefig(f"center-{os.path.basename (imagename)}.png", dpi=300)
         plt.close()
 
     measurement = agupinholedb.PinholeMeasurement(imagename=str(imagename), instrument=instrument, altitude=alt,
@@ -176,7 +184,7 @@ def parseCommandLine():
     parser.add_argument('--ndays', default=3, type=int, help="How many days to look into the past")
     parser.add_argument('--cameratype', type=str, nargs='+', default=['ak??', ],
                         help='Type of cameras to parse')
-
+    parser.add_argument('--single', default = None)
     args = parser.parse_args()
     logging.basicConfig(level=getattr(logging, args.log_level.upper()),
                         format='%(asctime)s.%(msecs).03d %(levelname)7s: %(module)20s: %(message)s')
@@ -203,6 +211,10 @@ def main():
         cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12', 'ak13', 'ak14', ]
 
     log.info("Found cameras: {}".format(cameras))
+
+    if args.single is not None:
+        cameras = [args.single,]
+        log.info (f"Cameras is now: {cameras}")
 
     for camera in cameras:
         log.info(f"Crawling {camera} ")
