@@ -306,10 +306,10 @@ def main():
     cameras = available_cameras if args.camera is None else [args.camera, ]
 
     for camera in cameras:
-        #plotagutrends(camera, outputpath=args.outputpath, sql=args.database)
-        findrecentPinhole(camera, sql=args.database)
+        plotagutrends(camera, outputpath=args.outputpath, sql=args.database)
+        #findrecentPinhole(camera, sql=args.database)
         pass
-    #renderHTMLPage(args, cameras)
+    renderHTMLPage(args, cameras)
     sys.exit(0)
 
 
