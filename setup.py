@@ -5,7 +5,7 @@ import setuptools
 
 setuptools.setup(
     name='nresaguflexure',
-    version='1.0.6',
+    version='1.1.0',
     packages=setuptools.find_packages(),
     url='',
     author='Daniel Harbeck',
