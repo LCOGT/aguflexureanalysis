@@ -58,6 +58,10 @@ def findPinhole(imagename, args, frameid):
     site = str(image[1].header['SITEID'])
     enclosure = str(image[1].header['ENCID'])
     telescope = str(image[1].header['TELID'])
+
+    if (alt == 'UNKNOWN') or (az == ' UNKNOWN'):
+        return None
+
     if 'ak05' in instrument:
         # fix central hot pixel
         log.debug("Fix ak05 hot pixel")
