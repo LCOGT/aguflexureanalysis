@@ -15,6 +15,7 @@ _logger = logging.getLogger(__name__)
 
 
 def pertelescopeplot(cameras, database, sitename, starttime=None, endtime=None, ):
+
     for camera in cameras:
         images, alts, az, xs, ys, dobs, foctemps, crpix1, crpix2 = aguanalysis.readPinHoles(camera, database)
 
@@ -25,12 +26,11 @@ def pertelescopeplot(cameras, database, sitename, starttime=None, endtime=None, 
 
         index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
         # print("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
-        plt.subplot(211)
 
-
-
+        plt.subplot(211, label="centerX")
+        plt.plot(dobs[index], xs[index], '.', markersize=1, label=f"{camera}")
         plt.plot ( dobs[index], crpix1[index] - np.median( crpix1[crpix1 > 0]), '-', color='orange', label='Assumed location')
-        plt.plot(dobs[index], xs[index], ',', label=f"{camera}")
+
         plt.ylim([-15, 15])
         plt.title(f"Pinhole location in focus images {sitename}")
         plt.ylabel("rel. center X")
@@ -38,10 +38,10 @@ def pertelescopeplot(cameras, database, sitename, starttime=None, endtime=None, 
         if starttime is not None:
                 plt.xlim([starttime, endtime])
 
-        plt.subplot(212)
-
+        plt.subplot(212, label="centerY")
+        plt.plot(dobs[index], ys[index], '.', markersize=1, label=f"{camera}")
         plt.plot (dobs[index], crpix2[index] - np.median( crpix2[crpix2 > 0]), '-', color='orange', label='Assumed location')
-        plt.plot(dobs[index], ys[index], ',', label=f"{camera}")
+
 
         plt.ylim([-15, 15])
         plt.ylabel("rel. center Y")
