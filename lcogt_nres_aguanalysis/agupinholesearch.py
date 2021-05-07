@@ -160,7 +160,10 @@ def findPinHoleInImages(imagelist, dbsession, args):
     for datum in results:
         if datum is not None:
             log.info("Adding to database: %s " % datum)
-            dbsession.merge(datum)
+            try:
+                dbsession.merge(datum)
+            except:
+                log.warn (f"Could not add datum: {datum}")
 
     dbsession.commit()
     return None
