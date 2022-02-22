@@ -9,8 +9,8 @@ import requests
 from astropy.io import fits
 from astropy.table import Table
 
-from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search
+from opensearchpy import OpenSearch
+from opensearch_dsl import Search
 
 log = logging.getLogger(__name__)
 logging.getLogger('elasticsearch').setLevel(logging.WARNING)
@@ -21,12 +21,12 @@ ARCHIVE_API_TOKEN = os.getenv('ARCHIVE_API_TOKEN', '')
 
 
 class ArchiveDiskCrawler:
-    ''' Legacy code from the good old times (2019) when the /archive mount was accessible, and everybody was happy in
+    """ Legacy code from the good old times (2019) when the /archive mount was accessible, and everybody was happy in
     the file system land.
 
     Now everybody moved on to databases, object stores, and other witchcraft.
 
-    '''
+    """
 
     archive_root = None
 
@@ -44,7 +44,7 @@ class ArchiveDiskCrawler:
 
     @staticmethod
     def get_last_n_days(lastNdays):
-        ''' Utility method to return the last N days as string YYYYMMDD, nicely arranged in an array.'''
+        """ Utility method to return the last N days as string YYYYMMDD, nicely arranged in an array."""
 
         date = []
         today = datetime.datetime.utcnow()
@@ -58,38 +58,39 @@ class ArchiveDiskCrawler:
         dir = "{}{}/{}/{}/{}".format(prefix, sitecamera, date, raworprocessed, filetempalte)
         files = glob.glob(dir)
         if (files is not None) and (len(files) > 0):
-            myfiles = np.asarray ([[f, "-1"] for f in files])
+            myfiles = np.asarray([[f, "-1"] for f in files])
             return Table(myfiles, names=['FILENAME', 'FRAMEID'])
         return None
 
 
-
-def make_elasticsearch(index, filters, queries=None, exclusion_filters=None, range_filters=None, prefix_filters=None,
-                       terms_filters=None,
-                       es_url='http://elasticsearch.lco.gtn:9200'):
+def make_opensearch(index, filters, queries=None, exclusion_filters=None, range_filters=None, prefix_filters=None,
+                    terms_filters=None,
+                    es_url='https://opensearch.lco.global'):
     """
-    Make an ElasticSearch query
+    Make an OpenSearch query
 
     Parameters
     ----------
     index : str
             Name of index to search
     filters : list of dicts
-              Each dict has a criterion for an ElasticSearch "filter"
+              Each dict has a criterion for an OpenSearch "filter"
     queries : list of dicts
               Each dict has a "type" and "query" entry. The 'query' entry is a dict that has a criterion for an
-              ElasticSearch "query"
+              OpenSearch "query"
     exclusion_filters : list of dicts
-                        Each dict has a criterion for an ElasticSearch "exclude"
+                        Each dict has a criterion for an OpenSearch "exclude"
     range_filters: list of dicts
-                   Each dict has a criterion an ElasticSearch "range filter"
+                   Each dict has a criterion an OpenSearch "range filter"
+    prefix_filters:
+    terms_filters:
     es_url : str
-             URL of the ElasticSearch host
+             URL of the OpenSearch host
 
     Returns
     -------
-    search : elasticsearch_dsl.Search
-             The ElasticSearch object
+    search : opensearch_dsl.Search
+             The OpenSearch object
     """
     if queries is None:
         queries = []
@@ -101,7 +102,7 @@ def make_elasticsearch(index, filters, queries=None, exclusion_filters=None, ran
         terms_filters = []
     if prefix_filters is None:
         prefix_filters = []
-    es = Elasticsearch(es_url)
+    es = OpenSearch(es_url)
     s = Search(using=es, index=index)
     for f in filters:
         s = s.filter('term', **f)
@@ -118,16 +119,16 @@ def make_elasticsearch(index, filters, queries=None, exclusion_filters=None, ran
     return s
 
 
-def get_frames_by_identifiers(dayobs, site=None, cameratype=None, camera=None, mintexp=30, obstype = 'EXPOSE', rlevel=91,
-                              filterlist=None, es_url='http://elasticsearch.lco.gtn:9200'):
+def get_frames_by_identifiers(dayobs, site=None, cameratype=None, camera=None, mintexp=30, obstype='EXPOSE', rlevel=91,
+                              filterlist=None, es_url='https://opensearch.lco.global'):
     """ Queries for a list of processed LCO images that are viable to get a photometric zeropoint in the griz bands measured.
 
-        Selection criteria are by DAY-OBS, site, by camaera type (fs,fa,kb), what filters to use, and minimum exposure time.
+        Selection criteria are by DAY-OBS, site, by camera type (fs,fa,kb), what filters to use, and minimum exposure time.
         Only day-obs is a mandatory fields, we do not want to query the entire archive at once.
      """
 
     # TODO: further preselect by number of sources to avoid overly crowded or empty fields
-    query_filters = [{'DAY-OBS': dayobs},  {'FOCOBOFF': 0}]
+    query_filters = [{'DAY-OBS': dayobs}, {'FOCOBOFF': 0}]
     range_filters = [{'EXPTIME': {'gte': mintexp}}, ]
     terms_filters = []
     prefix_filters = []
@@ -137,18 +138,18 @@ def get_frames_by_identifiers(dayobs, site=None, cameratype=None, camera=None, m
     if obstype is not None:
         query_filters.append({"OBSTYPE": obstype})
     if rlevel is not None:
-        query_filters.append ({'RLEVEL': rlevel})
+        query_filters.append({'RLEVEL': rlevel})
     if camera is not None:
         query_filters.append({'INSTRUME': camera})
     if cameratype is not None:
         prefix_filters.append({'INSTRUME': cameratype})
     if filterlist is not None:
-        terms_filters.append ({'FILTER': filterlist})
+        terms_filters.append({'FILTER': filterlist})
 
     queries = []
-    records = make_elasticsearch('lco-fitsheaders', query_filters, queries, exclusion_filters=None, es_url=es_url,
-                                 range_filters=range_filters, prefix_filters=prefix_filters,
-                                 terms_filters=terms_filters).scan()
+    records = make_opensearch('lco-fitsheaders', query_filters, queries, exclusion_filters=None, es_url=es_url,
+                              range_filters=range_filters, prefix_filters=prefix_filters,
+                              terms_filters=terms_filters).scan()
     if records is None:
         return None
     records_sanitized = np.asarray([[record['filename'], record['frameid']] for record in records])
@@ -156,9 +157,8 @@ def get_frames_by_identifiers(dayobs, site=None, cameratype=None, camera=None, m
     return records_sanitized
 
 
-
 def filename_to_archivepath_dict(filenametable, rootpath='/archive/engineering'):
-    ''' Return a dictionary with camera -> list of FileIO-able path of imagers from an elastic search result.
+    ''' Return a dictionary with camera -> list of FileIO-able path of imagers from an opensearch result.
         We are still married to /archive file names here - because reasons. Long term we should go away from that.
     '''
 
