@@ -5,7 +5,7 @@ import setuptools
 
 setuptools.setup(
     name='nresaguflexure',
-    version='1.1.0',
+    version='1.2.1',
     packages=setuptools.find_packages(),
     url='',
     author='Daniel Harbeck',
@@ -16,7 +16,7 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    entry_points = {
+    entry_points={
         'console_scripts': ['agupinholesearch = lcogt_nres_aguanalysis.agupinholesearch:main',
                              'aguanalysis = lcogt_nres_aguanalysis.aguanalysis:main'],
 

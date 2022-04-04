@@ -68,6 +68,12 @@ def findPinhole(imagename, args, frameid):
         hpx = 716 - 1 # ds9 coordinate, 1-indexed.
         hpy = 590 - 1
         image[1].data[hpy, hpx] = 1 / 2. * (image[1].data[hpy, hpx + 1] + image[1].data[hpy, hpx - 1])
+    if 'ak16' in instrument:
+        # fix central hot pixel
+        log.debug("Fix ak05 hot pixel")
+        hpx = 609 - 1 # ds9 coordinate, 1-indexed.
+        hpy = 548 - 1
+        image[1].data[hpy, hpx] = 1 / 2. * (image[1].data[hpy, hpx + 1] + image[1].data[hpy, hpx - 1])
 
     extractdata = image[1].data[CRPIX2 - EXTRACT_FRAMESIZE: CRPIX2 + (EXTRACT_FRAMESIZE-1),
                   CRPIX1 - EXTRACT_FRAMESIZE: CRPIX1 + (EXTRACT_FRAMESIZE-1)].astype(float)
