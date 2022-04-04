@@ -215,7 +215,7 @@ def main():
     if not args.useaws:
         cameras = c.find_cameras(sites=['lsc', 'elp', 'tlv', 'cpt'], cameras=args.cameratype)
     else:
-        cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12', 'ak13', 'ak14', ]
+        cameras = ['ak01', 'ak02', 'ak03', 'ak04', 'ak05', 'ak06', 'ak07', 'ak10', 'ak11', 'ak12', 'ak13', 'ak14', 'ak16']
 
     log.info("Found cameras: {}".format(cameras))
 
