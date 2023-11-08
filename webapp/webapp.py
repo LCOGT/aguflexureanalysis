@@ -22,7 +22,7 @@ def get_last_update_time_from_object():
     client = boto3.client('s3')
     params = {
         'Bucket': os.environ.get('AWS_S3_BUCKET', None),
-        'Key': 'longtermtrend_pinhole_ak01.png',
+        'Key': 'longtermtrend_pinhole_ak02.png',
     }
     try:
         response = client.head_object(**params)
