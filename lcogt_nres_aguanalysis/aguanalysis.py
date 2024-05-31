@@ -164,8 +164,9 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     filteredx = xs * 0
     smallnumber = (np.abs(ys) < 15) & (np.abs(xs) < 15)
     recent_x, recent_y = findrecentPinhole(dobs, xraw,yraw)
-
-    print (f"recent pinhole location: {recent_x} {recent_y}, compare to CRPix: {crpix1[-1]} {crpix2[-1]}")
+    recent_crpix1 = crpix1[-1] if len (crpix1) > 0 else 0
+    recent_crpix2 = crpix2[-1] if len (crpix2) > 0 else 0
+    print (f"recent pinhole location: {recent_x} {recent_y}, compare to CRPix: {recent_crpix1} {recent_crpix2}")
 
     index = (np.isfinite(xs)) & np.isfinite(ys) & (xs != 0)  # & (alts>89)
     # print("Min {} Max {} ".format(dobs[index].min(), dobs[index].max()))
@@ -176,7 +177,7 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
     else:
         recent_x = -1
     plt.ylim([-15, 15])
-    plt.title(f"{camera} pinhole location in focus images X recent {recent_x:6.1f}, CRPIX1: {crpix1[-1]:6.1f}:")
+    plt.title(f"{camera} pinhole location in focus images X recent {recent_x:6.1f}, CRPIX1: {recent_crpix1:6.1f}:")
     dateformat()
 
     plt.subplot(212)
@@ -188,7 +189,7 @@ def plotagutrends(camera='ak01', sql='sqlite:///agupinholelocations.sqlite', out
 
 
     plt.ylim([-15, 15])
-    plt.title(f"{camera} pinhole location in focus images Yrecent {recent_y:6.1f}, CRPIX2: {crpix2[-1]:6.1f}:")
+    plt.title(f"{camera} pinhole location in focus images Yrecent {recent_y:6.1f}, CRPIX2: {recent_crpix2:6.1f}:")
     dateformat()
     plt.tight_layout()
 
