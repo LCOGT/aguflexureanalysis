@@ -24,7 +24,7 @@ plt.style.use('ggplot')
 _logger = logging.getLogger(__name__)
 logging.getLogger('matplotlib').setLevel(logging.FATAL)
 
-available_cameras = ['ak02', 'ak05', 'ak06', 'ak15', 'ak16', 'ak17', 'ak18', 'ak19',  ]
+available_cameras = ['ak05', 'ak06', 'ak15', 'ak16', 'ak17', 'ak18', 'ak19', 'ak20',]
 
 def aws_enabled():
     '''Return True if AWS support is configured'''
