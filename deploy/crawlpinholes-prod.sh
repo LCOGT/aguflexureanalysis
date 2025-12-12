@@ -1,7 +1,7 @@
 #!/bin/bash
 
 N_DAYS="${N_DAYS:-3}"
-N_CPU="${N_CPU:-1}"
+N_CPU="${N_CPU:-2}"
 
 # PostgreSQL Database Configuration using the LCO standard for database
 # connection configuration in containerized projects.
